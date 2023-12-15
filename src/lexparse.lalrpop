@@ -1,0 +1,19 @@
+use std::str::FromStr;
+
+grammar;
+
+pub Expression: u64 = {
+    <n:Num> => n,
+};
+
+Value: u64 = {
+
+}
+
+Identifier: String = {
+
+}
+
+Num: u64 = <s:r"[0-9]+"> => u64::from_str(s).unwrap();
+
+Pidedntifier: String = <s:r"[a-z]+"> => s.to_string();

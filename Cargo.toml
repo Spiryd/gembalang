@@ -1,0 +1,13 @@
+[package]
+name = "gembalang"
+version = "0.1.0"
+edition = "2021"
+authors = ["Maksymilian Neummann"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+lalrpop-util = { version = "0.20.0", features = ["lexer", "unicode"] }
+
+[build-dependencies]
+lalrpop = "0.20.0"

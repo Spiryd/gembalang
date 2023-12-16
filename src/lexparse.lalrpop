@@ -1,19 +1,62 @@
 use std::str::FromStr;
 
+use crate::ast::*;
+
 grammar;
 
-pub Expression: u64 = {
-    <n:Num> => n,
+match {
+    "+",
+    "-",
+    "*",
+    "/",
+    "%",
+    "=",
+    "!=",
+    ">",
+    "<",
+    ">=",
+    "<=",
+    r"[0-9]+",
+    r"[a-z]+",
+    "[",
+    "]",
+    r"\s*" => {},// Skip whitespace
+    r"#[^\n\r]*[\n\r]*" => {},// Skip `# comment`
+}
+
+pub Program: Program = {
+    
+}
+
+pub Expression: Expression = {
+    <v:Value> => Expression::Val(v),
+    <v0:Value> "+" <v1:Value>=> Expression::Add(v0, v1),
+    <v0:Value> "-" <v1:Value>=> Expression::Substract(v0, v1),
+    <v0:Value> "*" <v1:Value>=> Expression::Multiply(v0, v1),
+    <v0:Value> "/" <v1:Value>=> Expression::Divide(v0, v1),
+    <v0:Value> "%" <v1:Value>=> Expression::Modulo(v0, v1),
 };
 
-Value: u64 = {
+Condition: Condition = {
+    <v0:Value> "=" <v1:Value> => Condition::Equal(v0, v1),
+    <v0:Value> "!=" <v1:Value> => Condition::NotEqual(v0, v1),
+    <v0:Value> ">" <v1:Value> => Condition::Greater(v0, v1),
+    <v0:Value> "<" <v1:Value> => Condition::Lower(v0, v1),
+    <v0:Value> ">=" <v1:Value> => Condition::GreaterOrEqual(v0, v1),
+    <v0:Value> "<=" <v1:Value> => Condition::LowerOrEqual(v0, v1),
+};
 
-}
+Value: Value = {
+    <n:Num> => Value::Num(n),
+    <id:Identifier> => Value::Id(id),
+};
 
-Identifier: String = {
+Identifier: Identifier = {
+    <p: Pidentifier> => Identifier::Base(p),
+    <p: Pidentifier> "[" <n: Num> "]" => Identifier::NumIndexed(p, n),
+    <p0: Pidentifier> "[" <p1: Pidentifier> "]" => Identifier::PidIndexed(p0, p1),
+};
 
-}
+Num: Num = <s:r"[0-9]+"> => u64::from_str(s).unwrap();
 
-Num: u64 = <s:r"[0-9]+"> => u64::from_str(s).unwrap();
-
-Pidedntifier: String = <s:r"[a-z]+"> => s.to_string();
+Pidentifier: Pidentifier = <s:r"[a-z]+"> => s.to_string();

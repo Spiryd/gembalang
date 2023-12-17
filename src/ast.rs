@@ -34,38 +34,58 @@ pub enum Expression {
     Modulo(Value, Value),
 }
 
-pub type Args = Vec<Pidentifier>;
+pub type Arguments = Vec<Pidentifier>;
 
-pub enum DeclarationVariation {
-    Basic(Pidentifier),
+#[derive(Debug)]
+pub enum ArgumentsDeclarationVariant {
+    Base(Pidentifier),
+    Table(Pidentifier),
+}
+
+pub type ArgumentsDeclaration = Vec<ArgumentsDeclarationVariant>;
+
+#[derive(Debug)]
+pub enum DeclarationVariant {
+    Base(Pidentifier),
     NumIndexed(Pidentifier, Num),
 }
 
-pub type Declarations = Vec<DeclarationVariation>;
+pub type Declarations = Vec<DeclarationVariant>;
 
-pub type ProcedureCall = (Pidentifier, Args);
+pub type ProcedureCall = (Pidentifier, Arguments);
 
-pub type ProcedureHead = (Pidentifier, Args);
+pub type ProcedureHead = (Pidentifier, ArgumentsDeclaration);
 
+#[derive(Debug)]
 pub enum Command {
     Assign(Identifier, Expression),
-    IfElse(Condition, Vec<Command>, Vec<Command>),
-    If(Condition, Vec<Command>),
-    While(Condition, Vec<Command>),
-    Repeat(Vec<Command>, Condition),
+    IfElse(Condition, Commands, Commands),
+    If(Condition, Commands),
+    While(Condition, Commands),
+    Repeat(Commands, Condition),
     ProcCall(ProcedureCall),
     Read(Identifier),
     Write(Value),
 }
 
+pub type Commands = Vec<Command>;
+
+#[derive(Debug)]
 pub enum Main {
-    WithDeclarations(Declarations, Vec<Command>),
-    WithOutDeclarations(Vec<Command>),
+    WithDeclarations(Declarations, Commands),
+    WithOutDeclarations(Commands),
 }
 
+#[derive(Debug)]
 pub enum Procedure {
-    WithDeclarations(ProcedureHead, Declarations, Vec<Command>),
-    WithOutDeclarations(ProcedureHead, Vec<Command>),
+    WithDeclarations(ProcedureHead, Declarations, Commands),
+    WithOutDeclarations(ProcedureHead, Commands),
 }
 
-pub type Program = (Vec<Procedure>, Main);
+pub type Procedures = Vec<Procedure>;
+
+#[derive(Debug)]
+pub enum Program {
+    WithProcedures(Procedures, Main),
+    WithOutProcedures(Main),
+}

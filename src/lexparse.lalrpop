@@ -19,7 +19,7 @@ match {
     ",",
     "T",
     r"[0-9]+",
-    r"[a-z]+",
+    r"[_a-z]+",
     "[",
     "]",
     "(",
@@ -48,26 +48,19 @@ match {
 }
 
 pub Program: Program = {
-    <procedures:Procedures> <main:Main> => Program::WithProcedures(procedures, main),
-    <main:Main> => Program::WithOutProcedures(main),
+    <procedures:Procedures?> <main:Main> => (procedures, main),
 };
 
 Procedures: Procedures = {
-    <mut procedures:Procedures> "PROCEDURE" <procedure_head:ProcedureHead> "IS" <declarations:Declarations> "IN" <commands:Commands> "END" => {
-        procedures.push(Procedure::WithDeclarations(procedure_head, declarations, commands));
+    <mut procedures:Procedures> "PROCEDURE" <procedure_head:ProcedureHead> "IS" <declarations:Declarations?> "IN" <commands:Commands> "END" => {
+        procedures.push((procedure_head, declarations, commands));
         procedures
     },
-    <mut procedures:Procedures> "PROCEDURE" <procedure_head:ProcedureHead> "IS" "IN" <commands:Commands> "END" => {
-        procedures.push(Procedure::WithOutDeclarations(procedure_head, commands));
-        procedures
-    },
-    "PROCEDURE" <procedure_head:ProcedureHead> "IS" <declarations:Declarations> "IN" <commands:Commands> "END" => vec![Procedure::WithDeclarations(procedure_head, declarations, commands)],
-    "PROCEDURE" <procedure_head:ProcedureHead> "IS" "IN" <commands:Commands> "END" => vec![Procedure::WithOutDeclarations(procedure_head, commands)],
+    "PROCEDURE" <procedure_head:ProcedureHead> "IS" <declarations:Declarations?> "IN" <commands:Commands> "END" => vec![(procedure_head, declarations, commands)],
 };
 
 Main: Main = {
-    "PROGRAM" "IS" <declarations:Declarations> "IN" <commands:Commands> "END" => Main::WithDeclarations(declarations, commands),
-    "PROGRAM" "IS" "IN" <commands:Commands> "END" => Main::WithOutDeclarations(commands),
+    "PROGRAM" "IS" <declarations:Declarations?> "IN" <commands:Commands> "END" => (declarations, commands),
 };
 
 Commands: Commands = {
@@ -80,8 +73,8 @@ Commands: Commands = {
 
 Command: Command = {
     <id:Identifier> ":=" <expression:Expression> ";" => Command::Assign(id, expression),
-    "IF" <condition:Condition> "THEN" <commands0:Commands> "ELSE" <commands1:Commands> "ENDIF" => Command::IfElse(condition, commands0, commands1),
-    "IF" <condition:Condition> "THEN" <commands:Commands> "ENDIF" => Command::If(condition, commands),
+    "IF" <condition:Condition> "THEN" <commands0:Commands> "ELSE" <commands1:Commands> "ENDIF" => Command::If(condition, commands0, Some(commands1)),
+    "IF" <condition:Condition> "THEN" <commands:Commands> "ENDIF" => Command::If(condition, commands, None),
     "WHILE" <condition:Condition> "DO" <commands:Commands> "ENDWHILE" => Command::While(condition, commands),
     "REPEAT" <commands:Commands> "UNTIL" <condition:Condition> ";" => Command::Repeat(commands, condition),
     <procedure_call:ProcedureCall> ";" => Command::ProcCall(procedure_call),
@@ -165,4 +158,4 @@ Identifier: Identifier = {
 
 Num: Num = <s:r"[0-9]+"> => u64::from_str(s).unwrap();
 
-Pidentifier: Pidentifier = <s:r"[a-z]+"> => s.to_string();
+Pidentifier: Pidentifier = <s:r"[_a-z]+"> => s.to_string();

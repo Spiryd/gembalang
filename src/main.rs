@@ -1,4 +1,5 @@
-pub mod ast;
+mod ast;
+mod pas;
 
 use lalrpop_util::lalrpop_mod;
 

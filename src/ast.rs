@@ -59,8 +59,7 @@ pub type ProcedureHead = (Pidentifier, ArgumentsDeclaration);
 #[derive(Debug)]
 pub enum Command {
     Assign(Identifier, Expression),
-    IfElse(Condition, Commands, Commands),
-    If(Condition, Commands),
+    If(Condition, Commands, Option<Commands>),
     While(Condition, Commands),
     Repeat(Commands, Condition),
     ProcCall(ProcedureCall),
@@ -70,22 +69,10 @@ pub enum Command {
 
 pub type Commands = Vec<Command>;
 
-#[derive(Debug)]
-pub enum Main {
-    WithDeclarations(Declarations, Commands),
-    WithOutDeclarations(Commands),
-}
+pub type Main = (Option<Declarations>, Commands);
 
-#[derive(Debug)]
-pub enum Procedure {
-    WithDeclarations(ProcedureHead, Declarations, Commands),
-    WithOutDeclarations(ProcedureHead, Commands),
-}
+pub type Procedure  = (ProcedureHead, Option<Declarations>, Commands);
 
 pub type Procedures = Vec<Procedure>;
 
-#[derive(Debug)]
-pub enum Program {
-    WithProcedures(Procedures, Main),
-    WithOutProcedures(Main),
-}
+pub type Program = (Option<Procedures>, Main); 

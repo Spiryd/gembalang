@@ -1,0 +1,24 @@
+READ
+PUT b
+READ
+PUT c
+PUT e
+RST d
+GET c
+JZERO 21
+SHR e
+SHL e
+GET c
+SUB e
+JZERO 16
+GET d
+ADD b
+PUT d
+SHL b
+SHR c
+GET c
+PUT e
+JUMP 6
+GET d
+WRITE
+HALT

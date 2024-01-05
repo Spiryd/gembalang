@@ -8,6 +8,9 @@ lalrpop_mod!(pub lexparse);
 use std::env;
 use std::fs;
 
+use ast::Program;
+use pas::*;
+
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() == 2 {
@@ -16,10 +19,9 @@ fn main() {
     let input_file_path = args.get(1).unwrap();
     let _output_file_path = args.get(2).unwrap();
     let program = fs::read_to_string(input_file_path).unwrap();
-    println!(
-        "{:?}",
-        lexparse::ProgramParser::new().parse(&program).unwrap()
-    );
+    let ast: Program = lexparse::ProgramParser::new().parse(&program).unwrap();
+    println!("{:?}", &ast);
+    let _pseudo_assembler = PseudoAssembler::new(ast);
 }
 
 #[cfg(test)]
@@ -33,7 +35,8 @@ mod compiler_test {
     #[test]
     fn exaple2_compile() {
         let program = fs::read_to_string("examples/example2.imp").unwrap();
-        lexparse::ProgramParser::new().parse(&program).unwrap();
+        let ast: Program = lexparse::ProgramParser::new().parse(&program).unwrap();
+        PseudoAssembler::new(ast);
     }
     #[test]
     fn exaple3_compile() {

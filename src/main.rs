@@ -1,5 +1,5 @@
 mod ast;
-mod pas;
+mod assembler;
 
 use lalrpop_util::lalrpop_mod;
 
@@ -9,7 +9,7 @@ use std::env;
 use std::fs;
 
 use ast::Program;
-use pas::*;
+use assembler::*;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -17,11 +17,13 @@ fn main() {
         panic!("Supply 2 argumments");
     }
     let input_file_path = args.get(1).unwrap();
-    let _output_file_path = args.get(2).unwrap();
+    let output_file_path = args.get(2).unwrap();
     let program = fs::read_to_string(input_file_path).unwrap();
     let ast: Program = lexparse::ProgramParser::new().parse(&program).unwrap();
-    println!("{:?}", &ast);
-    let _pseudo_assembler = PseudoAssembler::new(ast);
+    let mut pseudo_assembler = Assembler::new(ast);
+    pseudo_assembler.construct();
+    let ass = pseudo_assembler.assemble();
+    fs::write(output_file_path, ass).expect("Unable to write file");
 }
 
 #[cfg(test)]
@@ -35,13 +37,16 @@ mod compiler_test {
     #[test]
     fn exaple2_compile() {
         let program = fs::read_to_string("examples/example2.imp").unwrap();
-        let ast: Program = lexparse::ProgramParser::new().parse(&program).unwrap();
-        PseudoAssembler::new(ast);
+        lexparse::ProgramParser::new().parse(&program).unwrap();
     }
     #[test]
     fn exaple3_compile() {
         let program = fs::read_to_string("examples/example3.imp").unwrap();
-        lexparse::ProgramParser::new().parse(&program).unwrap();
+        let ast: Program = lexparse::ProgramParser::new().parse(&program).unwrap();
+        let mut pseudo_assembler = Assembler::new(ast);
+        pseudo_assembler.construct();
+        let ass: String = pseudo_assembler.assemble();
+        println!("{}", ass);
     }
     #[test]
     fn exaple4_compile() {

@@ -2,19 +2,19 @@ pub type Num = u64;
 
 pub type Pidentifier = String;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Identifier {
     Base(Pidentifier),
     NumIndexed(Pidentifier, Num),
     PidIndexed(Pidentifier, Pidentifier),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Value {
     Num(Num),
     Id(Identifier),
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Condition {
     Equal(Value, Value),
     NotEqual(Value, Value),
@@ -24,7 +24,7 @@ pub enum Condition {
     LowerOrEqual(Value, Value),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Expression {
     Val(Value),
     Add(Value, Value),
@@ -36,7 +36,7 @@ pub enum Expression {
 
 pub type Arguments = Vec<Pidentifier>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ArgumentsDeclarationVariant {
     Base(Pidentifier),
     Table(Pidentifier),
@@ -44,7 +44,7 @@ pub enum ArgumentsDeclarationVariant {
 
 pub type ArgumentsDeclaration = Vec<ArgumentsDeclarationVariant>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum DeclarationVariant {
     Base(Pidentifier),
     NumIndexed(Pidentifier, Num),
@@ -56,7 +56,7 @@ pub type ProcedureCall = (Pidentifier, Arguments);
 
 pub type ProcedureHead = (Pidentifier, ArgumentsDeclaration);
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Command {
     Assign(Identifier, Expression),
     If(Condition, Commands, Option<Commands>),

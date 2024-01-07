@@ -1,11 +1,12 @@
-use std::{collections::HashMap, fmt::Display};
+use std::{
+    collections::{HashMap, VecDeque},
+    fmt::Display,
+};
 
 use crate::ast::*;
 
 use Register::*;
 
-
-//MUL uses registers a,b,c,d,e result-d args-bc
 #[allow(dead_code)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 enum Register {
@@ -34,7 +35,9 @@ impl Display for Register {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+/// Jumps are relative in our pseudo-Instructions
 enum Instruction {
     Read,
     Write,
@@ -49,15 +52,26 @@ enum Instruction {
     Dec(Register),
     Shl(Register),
     Shr(Register),
-    Jump,
-    Jpos,
-    Jzero,
+    Jump(i64),
+    Jpos(i64),
+    Jzero(i64),
     Strk,
     Jumpr,
     Halt,
     Mul,
     Div,
     Mod,
+}
+
+impl Instruction {
+    fn len(&self) -> u64 {
+        match self {
+            Instruction::Mul => 18,
+            Instruction::Div => 23,
+            Instruction::Mod => 17,
+            _ => 1,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -105,95 +119,105 @@ impl Assembler {
         }
     }
     pub fn assemble(&self) -> String {
-        let mut assembly: String = "".to_string();
+        let mut assembly: Vec<String> = Vec::new();
         for instruction in &self.pseudo_assembly {
             match instruction {
-                Instruction::Read => assembly += "READ\n",
-                Instruction::Write => assembly += "WRITE\n",
-                Instruction::Load(register) => assembly += &format!("LOAD {register}\n"),
-                Instruction::Store(register) => assembly += &format!("STORE {register}\n"),
-                Instruction::Add(register) => assembly += &format!("ADD {register}\n"),
-                Instruction::Sub(register) => assembly += &format!("SUB {register}\n"),
-                Instruction::Get(register) => assembly += &format!("GET {register}\n"),
-                Instruction::Put(register) => assembly += &format!("PUT {register}\n"),
-                Instruction::Rst(register) => assembly += &format!("RST {register}\n"),
-                Instruction::Inc(register) => assembly += &format!("INC {register}\n"),
-                Instruction::Dec(register) => assembly += &format!("DEC {register}\n"),
-                Instruction::Shl(register) => assembly += &format!("SHL {register}\n"),
-                Instruction::Shr(register) => assembly += &format!("SHR {register}\n"),
-                Instruction::Jump => todo!(),
-                Instruction::Jpos => todo!(),
-                Instruction::Jzero => todo!(),
+                Instruction::Read => assembly.push("READ\n".to_string()),
+                Instruction::Write => assembly.push("WRITE\n".to_string()),
+                Instruction::Load(register) => assembly.push(format!("LOAD {register}\n")),
+                Instruction::Store(register) => assembly.push(format!("STORE {register}\n")),
+                Instruction::Add(register) => assembly.push(format!("ADD {register}\n")),
+                Instruction::Sub(register) => assembly.push(format!("SUB {register}\n")),
+                Instruction::Get(register) => assembly.push(format!("GET {register}\n")),
+                Instruction::Put(register) => assembly.push(format!("PUT {register}\n")),
+                Instruction::Rst(register) => assembly.push(format!("RST {register}\n")),
+                Instruction::Inc(register) => assembly.push(format!("INC {register}\n")),
+                Instruction::Dec(register) => assembly.push(format!("DEC {register}\n")),
+                Instruction::Shl(register) => assembly.push(format!("SHL {register}\n")),
+                Instruction::Shr(register) => assembly.push(format!("SHR {register}\n")),
+                Instruction::Jump(offset) => {
+                    assembly.push(format!("JUMP {}\n", offset + assembly.len() as i64))
+                }
+                Instruction::Jpos(offset) => {
+                    assembly.push(format!("JPOS {}\n", offset + assembly.len() as i64))
+                }
+                Instruction::Jzero(offset) => {
+                    assembly.push(format!("JZERO {}\n", offset + assembly.len() as i64))
+                }
                 Instruction::Strk => todo!(),
                 Instruction::Jumpr => todo!(),
-                Instruction::Halt =>  assembly += "HALT\n",
+                Instruction::Halt => assembly.push("HALT\n".to_string()),
                 Instruction::Mul => {
-                    assembly += &format!("PUT e\n"); // 0 1
-                    assembly += &format!("RST d\n");
-                    assembly += &format!("GET c\n"); // 2 3
-                    assembly += &format!("JZERO {}\n", assembly.len() + 13); // 3 4
-                    assembly += &format!("SHR e\n");
-                    assembly += &format!("SHL e\n");
-                    assembly += &format!("GET c\n");
-                    assembly += &format!("SUB e\n");
-                    assembly += &format!("JZERO {}\n", assembly.len() + 3); // 8 9
-                    assembly += &format!("GET d\n");
-                    assembly += &format!("ADD b\n");
-                    assembly += &format!("PUT d\n");
-                    assembly += &format!("SHL b\n");
-                    assembly += &format!("SHR c\n");
-                    assembly += &format!("GET c\n");
-                    assembly += &format!("PUT e\n");
-                    assembly += &format!("JUMP {}\n", assembly.len() - 14); // 16  17
-                    assembly += &format!("GET d\n"); // 17 18
-                },
+                    assembly.push(format!("PUT e\n")); // 0 1
+                    assembly.push(format!("RST d\n"));
+                    assembly.push(format!("GET c\n")); // 2 3
+                    assembly.push(format!("JZERO {}\n", assembly.len() + 14)); // 3 4
+                    assembly.push(format!("SHR e\n"));
+                    assembly.push(format!("SHL e\n"));
+                    assembly.push(format!("GET c\n"));
+                    assembly.push(format!("SUB e\n"));
+                    assembly.push(format!("JZERO {}\n", assembly.len() + 4)); // 8 9
+                    assembly.push(format!("GET d\n"));
+                    assembly.push(format!("ADD b\n"));
+                    assembly.push(format!("PUT d\n"));
+                    assembly.push(format!("SHL b\n"));
+                    assembly.push(format!("SHR c\n"));
+                    assembly.push(format!("GET c\n"));
+                    assembly.push(format!("PUT e\n"));
+                    assembly.push(format!("JUMP {}\n", assembly.len() - 14)); // 16  17
+                    assembly.push(format!("GET d\n")); // 17 18
+                }
                 Instruction::Div => {
-                    assembly += &format!("RST d\n"); // 0 1
-                    assembly += &format!("JZERO {}\n", assembly.len() + 20); // 1 2
-                    assembly += &format!("GET c\n"); // 2 3
-                    assembly += &format!("SUB b\n");
-                    assembly += &format!("JPOS {}\n", assembly.len() + 17); // 4 5
-                    assembly += &format!("GET c\n");
-                    assembly += &format!("PUT e\n");
-                    assembly += &format!("RST f\n");
-                    assembly += &format!("INC f\n");
-                    assembly += &format!("GET e\n"); // 9 10
-                    assembly += &format!("SUB b\n");
-                    assembly += &format!("JPOS {}\n", assembly.len() + 9); // 11 12
-                    assembly += &format!("GET b\n");
-                    assembly += &format!("SUB e\n");
-                    assembly += &format!("PUT b\n");
-                    assembly += &format!("GET d\n");
-                    assembly += &format!("ADD f\n");
-                    assembly += &format!("PUT d\n");
-                    assembly += &format!("SHL e\n");
-                    assembly += &format!("SHL f\n");
-                    assembly += &format!("JUMP {}\n", assembly.len() - 12); // 20 21
-                    assembly += &format!("JUMP {}\n", assembly.len() - 20); // 21 22
-                    assembly += &format!("GET d\n"); // 22 23
-                },
+                    assembly.push(format!("RST d\n")); // 0 1
+                    assembly.push(format!("JZERO {}\n", assembly.len() + 21)); // 1 2
+                    assembly.push(format!("GET c\n")); // 2 3
+                    assembly.push(format!("SUB b\n"));
+                    assembly.push(format!("JPOS {}\n", assembly.len() + 17)); // 4 5
+                    assembly.push(format!("GET c\n"));
+                    assembly.push(format!("PUT e\n"));
+                    assembly.push(format!("RST f\n"));
+                    assembly.push(format!("INC f\n"));
+                    assembly.push(format!("GET e\n")); // 9 10
+                    assembly.push(format!("SUB b\n"));
+                    assembly.push(format!("JPOS {}\n", assembly.len() + 9)); // 11 12
+                    assembly.push(format!("GET b\n"));
+                    assembly.push(format!("SUB e\n"));
+                    assembly.push(format!("PUT b\n"));
+                    assembly.push(format!("GET d\n"));
+                    assembly.push(format!("ADD f\n"));
+                    assembly.push(format!("PUT d\n"));
+                    assembly.push(format!("SHL e\n"));
+                    assembly.push(format!("SHL f\n"));
+                    assembly.push(format!("JUMP {}\n", assembly.len() - 12)); // 20 21
+                    assembly.push(format!("JUMP {}\n", assembly.len() - 20)); // 21 22
+                    assembly.push(format!("GET d\n")); // 22 23
+                }
                 Instruction::Mod => {
-                    assembly += &format!("RST d\n");
-                    assembly += &format!("JZERO {}\n", assembly.len() + 14); // 1 2
-                    assembly += &format!("GET c\n");
-                    assembly += &format!("SUB b\n");
-                    assembly += &format!("JPOS {}\n", assembly.len() + 11); // 4 5
-                    assembly += &format!("GET c\n");
-                    assembly += &format!("PUT d\n"); // 6 7
-                    assembly += &format!("GET d\n");
-                    assembly += &format!("SUB b\n");
-                    assembly += &format!("JPOS {}\n", assembly.len() + 5); // 9 10
-                    assembly += &format!("GET b\n");
-                    assembly += &format!("SUB d\n");
-                    assembly += &format!("PUT b\n");
-                    assembly += &format!("SHL d\n");
-                    assembly += &format!("JUMP {}\n", assembly.len() - 9); // 14 15
-                    assembly += &format!("JUMP {}\n", assembly.len() - 15); // 15 16
-                    assembly += &format!("GET b\n"); // 16 17
-                },
+                    assembly.push(format!("RST d\n"));
+                    assembly.push(format!("JZERO {}\n", assembly.len() + 14)); // 1 2
+                    assembly.push(format!("GET c\n"));
+                    assembly.push(format!("SUB b\n"));
+                    assembly.push(format!("JPOS {}\n", assembly.len() + 11)); // 4 5
+                    assembly.push(format!("GET c\n"));
+                    assembly.push(format!("PUT d\n")); // 6 7
+                    assembly.push(format!("GET d\n"));
+                    assembly.push(format!("SUB b\n"));
+                    assembly.push(format!("JPOS {}\n", assembly.len() + 5)); // 9 10
+                    assembly.push(format!("GET b\n"));
+                    assembly.push(format!("SUB d\n"));
+                    assembly.push(format!("PUT b\n"));
+                    assembly.push(format!("SHL d\n"));
+                    assembly.push(format!("JUMP {}\n", assembly.len() - 9)); // 14 15
+                    assembly.push(format!("JUMP {}\n", assembly.len() - 15)); // 15 16
+                    assembly.push(format!("GET b\n")); // 16 17
+                }
             }
         }
-        assembly
+        let mut assembled = "".to_string();
+        for i in assembly {
+            assembled += &i;
+        }
+        assembled
     }
     pub fn construct(&mut self) {
         self.construct_main();
@@ -214,8 +238,72 @@ impl Assembler {
                 instructions.push(Instruction::Store(G));
                 instructions
             }
-            Command::If(_, _, _) => todo!(),
-            Command::While(_, _) => todo!(),
+            Command::If(condition, commands, else_commands) => {
+                todo!()
+            }
+            Command::While(condition, commands) => {
+                let mut instructions: Vec<Instruction> = Vec::new();
+                let mut sub_instuctions: VecDeque<Instruction> = VecDeque::new();
+                for command in commands {
+                    sub_instuctions.extend(self.construct_command(command));
+                }
+                let sub_instruction_length: u64 = sub_instuctions.iter().map(|i| i.len()).sum();
+                println!("{:?}", sub_instruction_length);
+                let cond_instructions = match condition {
+                    Condition::Equal(value_0, value_1) => todo!(),
+                    Condition::NotEqual(value_0, value_1) => todo!(),
+                    Condition::Greater(value_0, value_1) => {
+                        let mut cond_instructions: Vec<Instruction> = Vec::new();
+                        cond_instructions.extend(self.extract_value(value_1));
+                        cond_instructions.push(Instruction::Put(B));
+                        cond_instructions.extend(self.extract_value(value_0));
+                        cond_instructions.push(Instruction::Sub(B));
+                        cond_instructions.push(Instruction::Jpos(2));
+                        cond_instructions
+                            .push(Instruction::Jump(sub_instruction_length as i64 + 2));
+                        cond_instructions
+                    }
+                    Condition::Lower(value_0, value_1) => {
+                        let mut cond_instructions: Vec<Instruction> = Vec::new();
+                        cond_instructions.extend(self.extract_value(value_0));
+                        cond_instructions.push(Instruction::Put(B));
+                        cond_instructions.extend(self.extract_value(value_1));
+                        cond_instructions.push(Instruction::Sub(B));
+                        cond_instructions.push(Instruction::Jpos(2));
+                        cond_instructions
+                            .push(Instruction::Jump(sub_instruction_length as i64 + 2));
+                        cond_instructions
+                    }
+                    Condition::GreaterOrEqual(value_0, value_1) => {
+                        let mut cond_instructions: Vec<Instruction> = Vec::new();
+                        cond_instructions.extend(self.extract_value(value_0));
+                        cond_instructions.push(Instruction::Put(B));
+                        cond_instructions.extend(self.extract_value(value_1));
+                        cond_instructions.push(Instruction::Sub(B));
+                        cond_instructions
+                            .push(Instruction::Jpos(sub_instruction_length as i64 + 2));
+                        cond_instructions
+                    }
+                    Condition::LowerOrEqual(value_0, value_1) => {
+                        let mut cond_instructions: Vec<Instruction> = Vec::new();
+                        cond_instructions.extend(self.extract_value(value_1));
+                        cond_instructions.push(Instruction::Put(B));
+                        cond_instructions.extend(self.extract_value(value_0));
+                        cond_instructions.push(Instruction::Sub(B));
+                        cond_instructions
+                            .push(Instruction::Jpos(sub_instruction_length as i64 + 2));
+                        cond_instructions
+                    }
+                };
+                let cond_instructions_length: u64 = cond_instructions.iter().map(|i| i.len()).sum();
+                println!("{:?}", cond_instructions_length);
+                instructions.extend(cond_instructions);
+                instructions.extend(sub_instuctions);
+                instructions.push(Instruction::Jump(
+                    - ((sub_instruction_length + cond_instructions_length) as i64),
+                ));
+                instructions
+            }
             Command::Repeat(_, _) => todo!(),
             Command::ProcCall(_) => todo!(),
             Command::Read(identifier) => {
@@ -243,14 +331,14 @@ impl Assembler {
                 instructions.extend(self.extract_value(value_1));
                 instructions.push(Instruction::Add(B));
                 instructions
-            },
+            }
             Expression::Substract(value_0, value_1) => {
                 let mut instructions = self.extract_value(value_1);
                 instructions.push(Instruction::Put(B));
                 instructions.extend(self.extract_value(value_0));
                 instructions.push(Instruction::Sub(B));
                 instructions
-            },
+            }
             Expression::Multiply(value_0, value_1) => {
                 let mut instructions = self.extract_value(value_0);
                 instructions.push(Instruction::Put(B));
@@ -258,7 +346,7 @@ impl Assembler {
                 instructions.push(Instruction::Put(C));
                 instructions.push(Instruction::Mul);
                 instructions
-            },
+            }
             Expression::Divide(value_0, value_1) => {
                 let mut instructions = self.extract_value(value_0);
                 instructions.push(Instruction::Put(B));
@@ -266,7 +354,7 @@ impl Assembler {
                 instructions.push(Instruction::Put(C));
                 instructions.push(Instruction::Div);
                 instructions
-            },
+            }
             Expression::Modulo(value_0, value_1) => {
                 let mut instructions = self.extract_value(value_0);
                 instructions.push(Instruction::Put(B));
@@ -274,7 +362,7 @@ impl Assembler {
                 instructions.push(Instruction::Put(C));
                 instructions.push(Instruction::Mod);
                 instructions
-            },
+            }
         }
     }
     /// Gets the `value` and puts it into the `A` register

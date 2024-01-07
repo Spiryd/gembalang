@@ -1,0 +1,9 @@
+PROGRAM IS
+  a
+IN
+  READ a;
+  WHILE a <= 10 DO
+    a := a + 1;
+  ENDWHILE
+  WRITE a;
+END

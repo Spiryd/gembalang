@@ -57,9 +57,9 @@ void run_machine( vector< pair<int,int> > & program )
       case SHL:		r[program[lr].second]<<=1; t+=1; lr++; break;
       case SHR:		r[program[lr].second]>>=1; t+=1; lr++; break;
 
-      case JUMP: 	lr = program[lr].second; t+=1; break;
-      case JPOS:	if( r[0]>0 ) lr = program[lr].second; else lr++; t+=1; break;
-      case JZERO:	if( r[0]==0 ) lr = program[lr].second; else lr++; t+=1; break;
+      case JUMP: 	lr = program[lr].second; t+=1; cout << "jump" << endl; break;
+      case JPOS:	if( r[0]>0 ) lr = program[lr].second; else lr++; cout << "jpos" << endl; t+=1; break;
+      case JZERO:	if( r[0]==0 ) lr = program[lr].second; else lr++; cout << "jzero" << endl; t+=1; break;
       
       case STRK:	r[program[lr].second] = lr; t+=1; lr++; break;
       case JUMPR:	lr = r[program[lr].second]; t+=1; break;

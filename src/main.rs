@@ -32,12 +32,17 @@ mod compiler_test {
     #[test]
     fn exaple1_compile() {
         let program = fs::read_to_string("examples/example1.imp").unwrap();
-        lexparse::ProgramParser::new().parse(&program).unwrap();
-    }
+        let ast: Program = lexparse::ProgramParser::new().parse(&program).unwrap();
+        let mut pseudo_assembler = Assembler::new(ast);
+        pseudo_assembler.construct();
+        pseudo_assembler.assemble();    }
     #[test]
     fn exaple2_compile() {
         let program = fs::read_to_string("examples/example2.imp").unwrap();
-        lexparse::ProgramParser::new().parse(&program).unwrap();
+        let ast: Program = lexparse::ProgramParser::new().parse(&program).unwrap();
+        let mut pseudo_assembler = Assembler::new(ast);
+        pseudo_assembler.construct();
+        pseudo_assembler.assemble();
     }
     #[test]
     fn exaple3_compile() {
@@ -45,37 +50,54 @@ mod compiler_test {
         let ast: Program = lexparse::ProgramParser::new().parse(&program).unwrap();
         let mut pseudo_assembler = Assembler::new(ast);
         pseudo_assembler.construct();
-        let ass: String = pseudo_assembler.assemble();
-        println!("{}", ass);
+        pseudo_assembler.assemble();
     }
     #[test]
     fn exaple4_compile() {
         let program = fs::read_to_string("examples/example4.imp").unwrap();
-        lexparse::ProgramParser::new().parse(&program).unwrap();
+        let ast: Program = lexparse::ProgramParser::new().parse(&program).unwrap();
+        let mut pseudo_assembler = Assembler::new(ast);
+        pseudo_assembler.construct();
+        pseudo_assembler.assemble();
     }
     #[test]
     fn exaple5_compile() {
         let program = fs::read_to_string("examples/example5.imp").unwrap();
-        lexparse::ProgramParser::new().parse(&program).unwrap();
+        let ast: Program = lexparse::ProgramParser::new().parse(&program).unwrap();
+        let mut pseudo_assembler = Assembler::new(ast);
+        pseudo_assembler.construct();
+        pseudo_assembler.assemble();
     }
     #[test]
     fn exaple6_compile() {
         let program = fs::read_to_string("examples/example6.imp").unwrap();
-        lexparse::ProgramParser::new().parse(&program).unwrap();
+        let ast: Program = lexparse::ProgramParser::new().parse(&program).unwrap();
+        let mut pseudo_assembler = Assembler::new(ast);
+        pseudo_assembler.construct();
+        pseudo_assembler.assemble();
     }
     #[test]
     fn exaple7_compile() {
         let program = fs::read_to_string("examples/example7.imp").unwrap();
-        lexparse::ProgramParser::new().parse(&program).unwrap();
+        let ast: Program = lexparse::ProgramParser::new().parse(&program).unwrap();
+        let mut pseudo_assembler = Assembler::new(ast);
+        pseudo_assembler.construct();
+        pseudo_assembler.assemble();
     }
     #[test]
     fn exaple8_compile() {
         let program = fs::read_to_string("examples/example8.imp").unwrap();
-        lexparse::ProgramParser::new().parse(&program).unwrap();
+        let ast: Program = lexparse::ProgramParser::new().parse(&program).unwrap();
+        let mut pseudo_assembler = Assembler::new(ast);
+        pseudo_assembler.construct();
+        pseudo_assembler.assemble();
     }
     #[test]
     fn exaple9_compile() {
         let program = fs::read_to_string("examples/example9.imp").unwrap();
-        lexparse::ProgramParser::new().parse(&program).unwrap();
+        let ast: Program = lexparse::ProgramParser::new().parse(&program).unwrap();
+        let mut pseudo_assembler = Assembler::new(ast);
+        pseudo_assembler.construct();
+        pseudo_assembler.assemble();
     }
 }

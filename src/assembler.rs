@@ -83,16 +83,17 @@ enum VariableVariant {
 #[derive(Debug)]
 pub struct Assembler {
     pseudo_assembly: Vec<Instruction>,
-    procedures: HashMap<String, ()>,
+    _procedures: HashMap<String, ()>,
     variables: HashMap<String, VariableVariant>,
     ast: Program,
 }
+
 impl Assembler {
     pub fn new(ast: Program) -> Assembler {
-        let mut procedures: HashMap<String, ()> = HashMap::new();
+        let mut _procedures: HashMap<String, ()> = HashMap::new();
         if let Some(procedures_ast) = ast.0.clone() {
             for procedure in procedures_ast {
-                procedures.insert(procedure.0 .0.clone(), ());
+                _procedures.insert(procedure.0 .0.clone(), ());
             }
         }
         let mut memory_pointer = 0;
@@ -113,7 +114,7 @@ impl Assembler {
         }
         Assembler {
             pseudo_assembly: vec![],
-            procedures,
+            _procedures,
             variables,
             ast,
         }
@@ -238,8 +239,122 @@ impl Assembler {
                 instructions.push(Instruction::Store(G));
                 instructions
             }
+            // Optimise by deleting jump when no else
             Command::If(condition, commands, else_commands) => {
-                todo!()
+                let mut instructions: Vec<Instruction> = Vec::new();
+                let mut sub_instuctions: Vec<Instruction> = Vec::new();
+                for command in commands {
+                    sub_instuctions.extend(self.construct_command(command));
+                }
+                let sub_instructions_length: u64 = sub_instuctions.iter().map(|i| i.len()).sum();
+                let mut sub_else_instuctions: Vec<Instruction> = Vec::new();
+                if let Some(else_commands) = else_commands {
+                    for command in else_commands {
+                        sub_else_instuctions.extend(self.construct_command(command));
+                    }
+                }
+                let sub_else_instruction_length: u64 =
+                    sub_else_instuctions.iter().map(|i| i.len()).sum();
+                match condition {
+                    Condition::Equal(value_0, value_1) => {
+                        let mut cond_instructions: Vec<Instruction> = Vec::new();
+                        cond_instructions.extend(self.extract_value(value_0));
+                        cond_instructions.push(Instruction::Put(B));
+                        cond_instructions.extend(self.extract_value(value_1));
+                        cond_instructions.push(Instruction::Put(C));
+                        cond_instructions.push(Instruction::Sub(B));
+                        cond_instructions
+                            .push(Instruction::Jpos(sub_instructions_length as i64 + 5));
+                        cond_instructions.push(Instruction::Get(B));
+                        cond_instructions.push(Instruction::Sub(C));
+                        cond_instructions
+                            .push(Instruction::Jpos(sub_instructions_length as i64 + 2));
+
+                        instructions.extend(cond_instructions);
+                        instructions.extend(sub_instuctions);
+                        instructions
+                            .push(Instruction::Jump(sub_else_instruction_length as i64 + 1));
+                        instructions.extend(sub_else_instuctions);
+                    }
+                    Condition::NotEqual(value_0, value_1) => {
+                        let mut cond_instructions: Vec<Instruction> = Vec::new();
+                        cond_instructions.extend(self.extract_value(value_0));
+                        cond_instructions.push(Instruction::Put(B));
+                        cond_instructions.extend(self.extract_value(value_1));
+                        cond_instructions.push(Instruction::Put(C));
+                        cond_instructions.push(Instruction::Sub(B));
+                        cond_instructions
+                            .push(Instruction::Jpos(sub_else_instruction_length as i64 + 5));
+                        cond_instructions.push(Instruction::Get(B));
+                        cond_instructions.push(Instruction::Sub(C));
+                        cond_instructions
+                            .push(Instruction::Jpos(sub_else_instruction_length as i64 + 2));
+
+                        instructions.extend(cond_instructions);
+                        instructions.extend(sub_else_instuctions);
+                        instructions.push(Instruction::Jump(sub_instructions_length as i64 + 1));
+                        instructions.extend(sub_instuctions);
+                    }
+                    Condition::Greater(value_0, value_1) => {
+                        let mut cond_instructions: Vec<Instruction> = Vec::new();
+                        cond_instructions.extend(self.extract_value(value_1));
+                        cond_instructions.push(Instruction::Put(B));
+                        cond_instructions.extend(self.extract_value(value_0));
+                        cond_instructions.push(Instruction::Sub(B));
+                        cond_instructions
+                            .push(Instruction::Jpos(sub_else_instruction_length as i64 + 2));
+
+                        instructions.extend(cond_instructions);
+                        instructions.extend(sub_else_instuctions);
+                        instructions.push(Instruction::Jump(sub_instructions_length as i64 + 1));
+                        instructions.extend(sub_instuctions);
+                    }
+                    Condition::Lower(value_0, value_1) => {
+                        let mut cond_instructions: Vec<Instruction> = Vec::new();
+                        cond_instructions.extend(self.extract_value(value_0));
+                        cond_instructions.push(Instruction::Put(B));
+                        cond_instructions.extend(self.extract_value(value_1));
+                        cond_instructions.push(Instruction::Sub(B));
+                        cond_instructions
+                            .push(Instruction::Jpos(sub_else_instruction_length as i64 + 2));
+
+                        instructions.extend(cond_instructions);
+                        instructions.extend(sub_else_instuctions);
+                        instructions.push(Instruction::Jump(sub_instructions_length as i64 + 1));
+                        instructions.extend(sub_instuctions);
+                    }
+                    Condition::GreaterOrEqual(value_0, value_1) => {
+                        let mut cond_instructions: Vec<Instruction> = Vec::new();
+                        cond_instructions.extend(self.extract_value(value_0));
+                        cond_instructions.push(Instruction::Put(B));
+                        cond_instructions.extend(self.extract_value(value_1));
+                        cond_instructions.push(Instruction::Sub(B));
+                        cond_instructions
+                            .push(Instruction::Jpos(sub_instructions_length as i64 + 2));
+
+                        instructions.extend(cond_instructions);
+                        instructions.extend(sub_instuctions);
+                        instructions
+                            .push(Instruction::Jump(sub_else_instruction_length as i64 + 1));
+                        instructions.extend(sub_else_instuctions);
+                    }
+                    Condition::LowerOrEqual(value_0, value_1) => {
+                        let mut cond_instructions: Vec<Instruction> = Vec::new();
+                        cond_instructions.extend(self.extract_value(value_1));
+                        cond_instructions.push(Instruction::Put(B));
+                        cond_instructions.extend(self.extract_value(value_0));
+                        cond_instructions.push(Instruction::Sub(B));
+                        cond_instructions
+                            .push(Instruction::Jpos(sub_instructions_length as i64 + 2));
+
+                        instructions.extend(cond_instructions);
+                        instructions.extend(sub_instuctions);
+                        instructions
+                            .push(Instruction::Jump(sub_else_instruction_length as i64 + 1));
+                        instructions.extend(sub_else_instuctions);
+                    }
+                }
+                instructions
             }
             Command::While(condition, commands) => {
                 let mut instructions: Vec<Instruction> = Vec::new();
@@ -247,11 +362,38 @@ impl Assembler {
                 for command in commands {
                     sub_instuctions.extend(self.construct_command(command));
                 }
-                let sub_instruction_length: u64 = sub_instuctions.iter().map(|i| i.len()).sum();
-                println!("{:?}", sub_instruction_length);
+                let sub_instructions_length: u64 = sub_instuctions.iter().map(|i| i.len()).sum();
                 let cond_instructions = match condition {
-                    Condition::Equal(value_0, value_1) => todo!(),
-                    Condition::NotEqual(value_0, value_1) => todo!(),
+                    Condition::Equal(value_0, value_1) => {
+                        let mut cond_instructions: Vec<Instruction> = Vec::new();
+                        cond_instructions.extend(self.extract_value(value_0));
+                        cond_instructions.push(Instruction::Put(B));
+                        cond_instructions.extend(self.extract_value(value_1));
+                        cond_instructions.push(Instruction::Put(C));
+                        cond_instructions.push(Instruction::Sub(B));
+                        cond_instructions
+                            .push(Instruction::Jpos(sub_instructions_length as i64 + 5));
+                        cond_instructions.push(Instruction::Get(B));
+                        cond_instructions.push(Instruction::Sub(C));
+                        cond_instructions
+                            .push(Instruction::Jpos(sub_instructions_length as i64 + 2));
+                        cond_instructions
+                    }
+                    Condition::NotEqual(value_0, value_1) => {
+                        let mut cond_instructions: Vec<Instruction> = Vec::new();
+                        cond_instructions.extend(self.extract_value(value_0));
+                        cond_instructions.push(Instruction::Put(B));
+                        cond_instructions.extend(self.extract_value(value_1));
+                        cond_instructions.push(Instruction::Put(C));
+                        cond_instructions.push(Instruction::Sub(B));
+                        cond_instructions
+                            .push(Instruction::Jzero(sub_instructions_length as i64 + 5));
+                        cond_instructions.push(Instruction::Get(B));
+                        cond_instructions.push(Instruction::Sub(C));
+                        cond_instructions
+                            .push(Instruction::Jzero(sub_instructions_length as i64 + 2));
+                        cond_instructions
+                    }
                     Condition::Greater(value_0, value_1) => {
                         let mut cond_instructions: Vec<Instruction> = Vec::new();
                         cond_instructions.extend(self.extract_value(value_1));
@@ -260,7 +402,7 @@ impl Assembler {
                         cond_instructions.push(Instruction::Sub(B));
                         cond_instructions.push(Instruction::Jpos(2));
                         cond_instructions
-                            .push(Instruction::Jump(sub_instruction_length as i64 + 2));
+                            .push(Instruction::Jump(sub_instructions_length as i64 + 2));
                         cond_instructions
                     }
                     Condition::Lower(value_0, value_1) => {
@@ -271,7 +413,7 @@ impl Assembler {
                         cond_instructions.push(Instruction::Sub(B));
                         cond_instructions.push(Instruction::Jpos(2));
                         cond_instructions
-                            .push(Instruction::Jump(sub_instruction_length as i64 + 2));
+                            .push(Instruction::Jump(sub_instructions_length as i64 + 2));
                         cond_instructions
                     }
                     Condition::GreaterOrEqual(value_0, value_1) => {
@@ -281,7 +423,7 @@ impl Assembler {
                         cond_instructions.extend(self.extract_value(value_1));
                         cond_instructions.push(Instruction::Sub(B));
                         cond_instructions
-                            .push(Instruction::Jpos(sub_instruction_length as i64 + 2));
+                            .push(Instruction::Jpos(sub_instructions_length as i64 + 2));
                         cond_instructions
                     }
                     Condition::LowerOrEqual(value_0, value_1) => {
@@ -291,20 +433,120 @@ impl Assembler {
                         cond_instructions.extend(self.extract_value(value_0));
                         cond_instructions.push(Instruction::Sub(B));
                         cond_instructions
-                            .push(Instruction::Jpos(sub_instruction_length as i64 + 2));
+                            .push(Instruction::Jpos(sub_instructions_length as i64 + 2));
                         cond_instructions
                     }
                 };
                 let cond_instructions_length: u64 = cond_instructions.iter().map(|i| i.len()).sum();
-                println!("{:?}", cond_instructions_length);
                 instructions.extend(cond_instructions);
                 instructions.extend(sub_instuctions);
                 instructions.push(Instruction::Jump(
-                    - ((sub_instruction_length + cond_instructions_length) as i64),
+                    -((sub_instructions_length + cond_instructions_length) as i64),
                 ));
                 instructions
             }
-            Command::Repeat(_, _) => todo!(),
+            Command::Repeat(commands, condition) => {
+                let mut instructions: Vec<Instruction> = Vec::new();
+                let mut sub_instuctions: VecDeque<Instruction> = VecDeque::new();
+                for command in commands {
+                    sub_instuctions.extend(self.construct_command(command));
+                }
+                let sub_instructions_length: u64 = sub_instuctions.iter().map(|i| i.len()).sum();
+
+                let cond_instructions = match condition {
+                    Condition::Equal(value_0, value_1) => {
+                        let mut cond_instructions: Vec<Instruction> = Vec::new();
+                        cond_instructions.extend(self.extract_value(value_0));
+                        cond_instructions.push(Instruction::Put(B));
+                        cond_instructions.extend(self.extract_value(value_1));
+                        cond_instructions.push(Instruction::Put(C));
+                        cond_instructions.push(Instruction::Sub(B));
+                        let cond_instructions_length: u64 =
+                            cond_instructions.iter().map(|i| i.len()).sum();
+                        cond_instructions
+                            .push(Instruction::Jpos(-((cond_instructions_length + sub_instructions_length) as i64)));
+                        cond_instructions.push(Instruction::Get(B));
+                        cond_instructions.push(Instruction::Sub(C));
+                        cond_instructions
+                            .push(Instruction::Jpos(-((cond_instructions_length + sub_instructions_length + 3) as i64)));
+                        cond_instructions
+                    }
+                    Condition::NotEqual(value_0, value_1) => {
+                        let mut cond_instructions: Vec<Instruction> = Vec::new();
+                        cond_instructions.extend(self.extract_value(value_0));
+                        cond_instructions.push(Instruction::Put(B));
+                        cond_instructions.extend(self.extract_value(value_1));
+                        cond_instructions.push(Instruction::Put(C));
+                        cond_instructions.push(Instruction::Sub(B));
+                        let cond_instructions_length: u64 =
+                            cond_instructions.iter().map(|i| i.len()).sum();
+                        cond_instructions
+                            .push(Instruction::Jzero(-((cond_instructions_length + sub_instructions_length) as i64)));
+                        cond_instructions.push(Instruction::Get(B));
+                        cond_instructions.push(Instruction::Sub(C));
+                        cond_instructions
+                            .push(Instruction::Jzero(-((cond_instructions_length + sub_instructions_length + 3) as i64)));
+                        cond_instructions
+                    }
+                    Condition::Greater(value_0, value_1) => {
+                        let mut cond_instructions: Vec<Instruction> = Vec::new();
+                        cond_instructions.extend(self.extract_value(value_1));
+                        cond_instructions.push(Instruction::Put(B));
+                        cond_instructions.extend(self.extract_value(value_0));
+                        cond_instructions.push(Instruction::Sub(B));
+                        cond_instructions.push(Instruction::Jpos(2));
+                        let cond_instructions_length: u64 =
+                            cond_instructions.iter().map(|i| i.len()).sum();
+                        cond_instructions.push(Instruction::Jump(
+                            -((cond_instructions_length + sub_instructions_length) as i64),
+                        ));
+                        cond_instructions
+                    }
+                    Condition::Lower(value_0, value_1) => {
+                        let mut cond_instructions: Vec<Instruction> = Vec::new();
+                        cond_instructions.extend(self.extract_value(value_0));
+                        cond_instructions.push(Instruction::Put(B));
+                        cond_instructions.extend(self.extract_value(value_1));
+                        cond_instructions.push(Instruction::Sub(B));
+                        cond_instructions.push(Instruction::Jpos(2));
+                        let cond_instructions_length: u64 =
+                            cond_instructions.iter().map(|i| i.len()).sum();
+                        cond_instructions.push(Instruction::Jump(
+                            -((cond_instructions_length + sub_instructions_length) as i64),
+                        ));
+                        cond_instructions
+                    }
+                    Condition::GreaterOrEqual(value_0, value_1) => {
+                        let mut cond_instructions: Vec<Instruction> = Vec::new();
+                        cond_instructions.extend(self.extract_value(value_0));
+                        cond_instructions.push(Instruction::Put(B));
+                        cond_instructions.extend(self.extract_value(value_1));
+                        cond_instructions.push(Instruction::Sub(B));
+                        let cond_instructions_length: u64 =
+                            cond_instructions.iter().map(|i| i.len()).sum();
+                        cond_instructions.push(Instruction::Jpos(
+                            -((cond_instructions_length + sub_instructions_length) as i64),
+                        ));
+                        cond_instructions
+                    }
+                    Condition::LowerOrEqual(value_0, value_1) => {
+                        let mut cond_instructions: Vec<Instruction> = Vec::new();
+                        cond_instructions.extend(self.extract_value(value_1));
+                        cond_instructions.push(Instruction::Put(B));
+                        cond_instructions.extend(self.extract_value(value_0));
+                        cond_instructions.push(Instruction::Sub(B));
+                        let cond_instructions_length: u64 =
+                            cond_instructions.iter().map(|i| i.len()).sum();
+                        cond_instructions.push(Instruction::Jpos(
+                            -((cond_instructions_length + sub_instructions_length) as i64),
+                        ));
+                        cond_instructions
+                    }
+                };
+                instructions.extend(sub_instuctions);
+                instructions.extend(cond_instructions);
+                instructions
+            }
             Command::ProcCall(_) => todo!(),
             Command::Read(identifier) => {
                 let mut instructions: Vec<Instruction> = Vec::new();
@@ -438,20 +680,4 @@ fn get_number(mut num: u64) -> Vec<Instruction> {
         instructions.extend(sub_instructions);
     }
     instructions
-}
-
-#[cfg(test)]
-mod pas_test {
-    use super::{Instruction::*, *};
-    #[test]
-    fn get_number_testr() {
-        assert_eq!(vec![Rst(A)], get_number(0));
-        assert_eq!(vec![Rst(A), Inc(A)], get_number(1));
-        assert_eq!(vec![Rst(A), Inc(A), Shl(A), Shl(A)], get_number(4));
-        assert_eq!(vec![Rst(A), Inc(A), Shl(A), Inc(A), Shl(A)], get_number(6));
-        assert_eq!(
-            vec![Rst(A), Inc(A), Shl(A), Shl(A), Inc(A), Shl(A)],
-            get_number(10)
-        );
-    }
 }

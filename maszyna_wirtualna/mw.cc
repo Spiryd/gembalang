@@ -38,7 +38,7 @@ void run_machine( vector< pair<int,int> > & program )
   io = 0;
   while( program[lr].first!=HALT )	// HALT
   {
-    cout << "[" << r[0] << "," << r[1] << "," << r[2] << "," << r[3] << "," << r[4]<< ","  << r[5] << "," << r[6] << "," << r[7] << "]" << endl;
+    // cout << "[" << r[0] << "," << r[1] << "," << r[2] << "," << r[3] << "," << r[4]<< ","  << r[5] << "," << r[6] << "," << r[7] << "]" << endl;
     switch( program[lr].first )
     {
       case READ:	cout << "? "; cin >> r[0]; io+=100; lr++; break;

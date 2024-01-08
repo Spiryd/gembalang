@@ -1,0 +1,23 @@
+PROGRAM IS
+    a
+IN
+    READ a;
+    IF a < 5 THEN
+        WRITE 1;
+    ENDIF
+    IF a > 5 THEN
+        WRITE 1;
+    ENDIF
+    IF a >= 5 THEN
+        WRITE 1;
+    ENDIF
+    IF a <= 5 THEN
+        WRITE 1;
+    ENDIF
+    IF a = 5 THEN
+        WRITE 1;
+    ENDIF
+    IF a != 5 THEN
+        WRITE 1;
+    ENDIF
+END

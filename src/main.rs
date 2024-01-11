@@ -18,8 +18,8 @@ fn main() {
     }
     let input_file_path = args.get(1).unwrap();
     let output_file_path = args.get(2).unwrap();
-    let program = fs::read_to_string(input_file_path).unwrap();
-    let ast: Program = lexparse::ProgramParser::new().parse(&program).unwrap();
+    let compilee = fs::read_to_string(input_file_path).unwrap();
+    let ast: Program = lexparse::ProgramParser::new().parse(&compilee).unwrap();
     let mut pseudo_assembler = Assembler::new(ast);
     pseudo_assembler.construct();
     let ass = pseudo_assembler.assemble();

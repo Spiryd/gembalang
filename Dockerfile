@@ -1,10 +1,9 @@
-FROM alpine
+FROM rust
 
 WORKDIR /usr/gembalang
 
-RUN apk update && apk upgrade && apk add --update alpine-sdk && \
-    apk add --no-cache bash git make cmake 
-RUN apk add flex && apk add bison
-RUN apk add --no-cache rust cargo
+RUN apt-get update 
+RUN apt-get install -y flex && apt-get install -y  bison
+RUN apt-get install -y libcln-dev
 
 COPY . .

@@ -68,7 +68,7 @@ impl Instruction {
         match self {
             Instruction::Mul => 18,
             Instruction::Div => 23,
-            Instruction::Mod => 17,
+            Instruction::Mod => 24,
             _ => 1,
         }
     }
@@ -669,6 +669,19 @@ impl Assembler {
             }
         }
     }
+}
+
+fn construct_condition(condition: Condition, jump_value: i64) -> Vec<Instruction> {
+    let instructions: Vec<Instruction> = Vec::new();
+    match condition {
+        Condition::Equal(_, _) => todo!(),
+        Condition::NotEqual(_, _) => todo!(),
+        Condition::Greater(_, _) => todo!(),
+        Condition::Lower(_, _) => todo!(),
+        Condition::GreaterOrEqual(_, _) => todo!(),
+        Condition::LowerOrEqual(_, _) => todo!(),
+    }
+    instructions
 }
 
 /// Puts the `num` into the `A` register

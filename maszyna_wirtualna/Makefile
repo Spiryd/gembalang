@@ -2,7 +2,11 @@ FLAGS = -W -pedantic -std=c++17 -O3
 
 .PHONY = all clean cleanall
 
-all: maszyna-wirtualna maszyna-wirtualna-cln
+all: maszyna-wirtualna maszyna-wirtualna-cln debugger
+
+debugger: lexer.o parser.o dbg.o main.o
+	$(CXX) $^ -o $@
+	strip $@
 
 maszyna-wirtualna: lexer.o parser.o mw.o main.o
 	$(CXX) $^ -o $@

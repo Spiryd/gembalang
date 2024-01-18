@@ -173,14 +173,14 @@ impl Assembler {
                     assembly.push(format!("JZERO {}\n", assembly.len() + 21)); // 1 2
                     assembly.push(format!("GET c\n")); // 2 3
                     assembly.push(format!("SUB b\n"));
-                    assembly.push(format!("JPOS {}\n", assembly.len() + 17)); // 4 5
+                    assembly.push(format!("JPOS {}\n", assembly.len() + 18)); // 4 5
                     assembly.push(format!("GET c\n"));
                     assembly.push(format!("PUT e\n"));
                     assembly.push(format!("RST f\n"));
                     assembly.push(format!("INC f\n"));
                     assembly.push(format!("GET e\n")); // 9 10
                     assembly.push(format!("SUB b\n"));
-                    assembly.push(format!("JPOS {}\n", assembly.len() + 9)); // 11 12
+                    assembly.push(format!("JPOS {}\n", assembly.len() + 10)); // 11 12
                     assembly.push(format!("GET b\n"));
                     assembly.push(format!("SUB e\n"));
                     assembly.push(format!("PUT b\n"));
@@ -189,28 +189,35 @@ impl Assembler {
                     assembly.push(format!("PUT d\n"));
                     assembly.push(format!("SHL e\n"));
                     assembly.push(format!("SHL f\n"));
-                    assembly.push(format!("JUMP {}\n", assembly.len() - 12)); // 20 21
-                    assembly.push(format!("JUMP {}\n", assembly.len() - 20)); // 21 22
+                    assembly.push(format!("JUMP {}\n", assembly.len() - 11)); // 20 21
+                    assembly.push(format!("JUMP {}\n", assembly.len() - 19)); // 21 22
                     assembly.push(format!("GET d\n")); // 22 23
                 }
                 Instruction::Mod => {
-                    assembly.push(format!("RST d\n"));
-                    assembly.push(format!("JZERO {}\n", assembly.len() + 14)); // 1 2
-                    assembly.push(format!("GET c\n"));
+                    assembly.push(format!("RST d\n")); // 0 1
+                    assembly.push(format!("JZERO {}\n", assembly.len() + 21)); // 1 2
+                    assembly.push(format!("GET c\n")); // 2 3
                     assembly.push(format!("SUB b\n"));
-                    assembly.push(format!("JPOS {}\n", assembly.len() + 11)); // 4 5
+                    assembly.push(format!("JPOS {}\n", assembly.len() + 19)); // 4 5
                     assembly.push(format!("GET c\n"));
-                    assembly.push(format!("PUT d\n")); // 6 7
-                    assembly.push(format!("GET d\n"));
+                    assembly.push(format!("PUT e\n"));
+                    assembly.push(format!("RST f\n"));
+                    assembly.push(format!("INC f\n"));
+                    assembly.push(format!("GET e\n")); // 9 10
                     assembly.push(format!("SUB b\n"));
-                    assembly.push(format!("JPOS {}\n", assembly.len() + 5)); // 9 10
+                    assembly.push(format!("JPOS {}\n", assembly.len() + 10)); // 11 12
                     assembly.push(format!("GET b\n"));
-                    assembly.push(format!("SUB d\n"));
+                    assembly.push(format!("SUB e\n"));
                     assembly.push(format!("PUT b\n"));
-                    assembly.push(format!("SHL d\n"));
-                    assembly.push(format!("JUMP {}\n", assembly.len() - 9)); // 14 15
-                    assembly.push(format!("JUMP {}\n", assembly.len() - 15)); // 15 16
-                    assembly.push(format!("GET b\n")); // 16 17
+                    assembly.push(format!("GET d\n"));
+                    assembly.push(format!("ADD f\n"));
+                    assembly.push(format!("PUT d\n"));
+                    assembly.push(format!("SHL e\n"));
+                    assembly.push(format!("SHL f\n"));
+                    assembly.push(format!("JUMP {}\n", assembly.len() - 11)); // 20 21
+                    assembly.push(format!("JUMP {}\n", assembly.len() - 19)); // 21 22
+                    assembly.push(format!("RST b\n")); // 22 23
+                    assembly.push(format!("GET b\n")); // 23 24
                 }
             }
         }

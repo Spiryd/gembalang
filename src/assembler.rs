@@ -470,12 +470,14 @@ impl Assembler {
                         cond_instructions.push(Instruction::Sub(B));
                         let cond_instructions_length: u64 =
                             cond_instructions.iter().map(|i| i.len()).sum();
-                        cond_instructions
-                            .push(Instruction::Jpos(-((cond_instructions_length + sub_instructions_length) as i64)));
+                        cond_instructions.push(Instruction::Jpos(
+                            -((cond_instructions_length + sub_instructions_length) as i64),
+                        ));
                         cond_instructions.push(Instruction::Get(B));
                         cond_instructions.push(Instruction::Sub(C));
-                        cond_instructions
-                            .push(Instruction::Jpos(-((cond_instructions_length + sub_instructions_length + 3) as i64)));
+                        cond_instructions.push(Instruction::Jpos(
+                            -((cond_instructions_length + sub_instructions_length + 3) as i64),
+                        ));
                         cond_instructions
                     }
                     Condition::NotEqual(value_0, value_1) => {
@@ -487,12 +489,14 @@ impl Assembler {
                         cond_instructions.push(Instruction::Sub(B));
                         let cond_instructions_length: u64 =
                             cond_instructions.iter().map(|i| i.len()).sum();
-                        cond_instructions
-                            .push(Instruction::Jzero(-((cond_instructions_length + sub_instructions_length) as i64)));
+                        cond_instructions.push(Instruction::Jzero(
+                            -((cond_instructions_length + sub_instructions_length) as i64),
+                        ));
                         cond_instructions.push(Instruction::Get(B));
                         cond_instructions.push(Instruction::Sub(C));
-                        cond_instructions
-                            .push(Instruction::Jzero(-((cond_instructions_length + sub_instructions_length + 3) as i64)));
+                        cond_instructions.push(Instruction::Jzero(
+                            -((cond_instructions_length + sub_instructions_length + 3) as i64),
+                        ));
                         cond_instructions
                     }
                     Condition::Greater(value_0, value_1) => {

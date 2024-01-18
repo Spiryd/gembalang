@@ -1,5 +1,5 @@
-mod ast;
 mod assembler;
+mod ast;
 
 use lalrpop_util::lalrpop_mod;
 
@@ -8,8 +8,8 @@ lalrpop_mod!(pub lexparse);
 use std::env;
 use std::fs;
 
-use ast::Program;
 use assembler::*;
+use ast::Program;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -31,14 +31,15 @@ mod compiler_test {
     use super::*;
     #[test]
     fn exaple1_compile() {
-        let program = fs::read_to_string("examples/example1.imp").unwrap();
+        let program = fs::read_to_string("examples/gembala/example1.imp").unwrap();
         let ast: Program = lexparse::ProgramParser::new().parse(&program).unwrap();
         let mut pseudo_assembler = Assembler::new(ast);
         pseudo_assembler.construct();
-        pseudo_assembler.assemble();    }
+        pseudo_assembler.assemble();
+    }
     #[test]
     fn exaple2_compile() {
-        let program = fs::read_to_string("examples/example2.imp").unwrap();
+        let program = fs::read_to_string("examples/gembala/example2.imp").unwrap();
         let ast: Program = lexparse::ProgramParser::new().parse(&program).unwrap();
         let mut pseudo_assembler = Assembler::new(ast);
         pseudo_assembler.construct();
@@ -46,7 +47,7 @@ mod compiler_test {
     }
     #[test]
     fn exaple3_compile() {
-        let program = fs::read_to_string("examples/example3.imp").unwrap();
+        let program = fs::read_to_string("examples/gembala/example3.imp").unwrap();
         let ast: Program = lexparse::ProgramParser::new().parse(&program).unwrap();
         let mut pseudo_assembler = Assembler::new(ast);
         pseudo_assembler.construct();
@@ -54,7 +55,7 @@ mod compiler_test {
     }
     #[test]
     fn exaple4_compile() {
-        let program = fs::read_to_string("examples/example4.imp").unwrap();
+        let program = fs::read_to_string("examples/gembala/example4.imp").unwrap();
         let ast: Program = lexparse::ProgramParser::new().parse(&program).unwrap();
         let mut pseudo_assembler = Assembler::new(ast);
         pseudo_assembler.construct();
@@ -62,7 +63,7 @@ mod compiler_test {
     }
     #[test]
     fn exaple5_compile() {
-        let program = fs::read_to_string("examples/example5.imp").unwrap();
+        let program = fs::read_to_string("examples/gembala/example5.imp").unwrap();
         let ast: Program = lexparse::ProgramParser::new().parse(&program).unwrap();
         let mut pseudo_assembler = Assembler::new(ast);
         pseudo_assembler.construct();
@@ -70,7 +71,7 @@ mod compiler_test {
     }
     #[test]
     fn exaple6_compile() {
-        let program = fs::read_to_string("examples/example6.imp").unwrap();
+        let program = fs::read_to_string("examples/gembala/example6.imp").unwrap();
         let ast: Program = lexparse::ProgramParser::new().parse(&program).unwrap();
         let mut pseudo_assembler = Assembler::new(ast);
         pseudo_assembler.construct();
@@ -78,7 +79,7 @@ mod compiler_test {
     }
     #[test]
     fn exaple7_compile() {
-        let program = fs::read_to_string("examples/example7.imp").unwrap();
+        let program = fs::read_to_string("examples/gembala/example7.imp").unwrap();
         let ast: Program = lexparse::ProgramParser::new().parse(&program).unwrap();
         let mut pseudo_assembler = Assembler::new(ast);
         pseudo_assembler.construct();
@@ -86,7 +87,7 @@ mod compiler_test {
     }
     #[test]
     fn exaple8_compile() {
-        let program = fs::read_to_string("examples/example8.imp").unwrap();
+        let program = fs::read_to_string("examples/gembala/example8.imp").unwrap();
         let ast: Program = lexparse::ProgramParser::new().parse(&program).unwrap();
         let mut pseudo_assembler = Assembler::new(ast);
         pseudo_assembler.construct();
@@ -94,7 +95,7 @@ mod compiler_test {
     }
     #[test]
     fn exaple9_compile() {
-        let program = fs::read_to_string("examples/example9.imp").unwrap();
+        let program = fs::read_to_string("examples/gembala/example9.imp").unwrap();
         let ast: Program = lexparse::ProgramParser::new().parse(&program).unwrap();
         let mut pseudo_assembler = Assembler::new(ast);
         pseudo_assembler.construct();

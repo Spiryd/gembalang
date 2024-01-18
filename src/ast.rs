@@ -71,8 +71,8 @@ pub type Commands = Vec<Command>;
 
 pub type Main = (Option<Declarations>, Commands);
 
-pub type Procedure  = (ProcedureHead, Option<Declarations>, Commands);
+pub type Procedure = (ProcedureHead, Option<Declarations>, Commands);
 
 pub type Procedures = Vec<Procedure>;
 
-pub type Program = (Option<Procedures>, Main); 
+pub type Program = (Option<Procedures>, Main);

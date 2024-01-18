@@ -22,3 +22,6 @@ Cargo.lock
 
 # ass files
 *.ass
+!mod.ass
+!div.ass
+!mul.ass

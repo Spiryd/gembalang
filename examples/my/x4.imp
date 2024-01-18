@@ -1,0 +1,8 @@
+PROGRAM IS
+  a, b
+IN
+  READ a;
+  READ b;
+  a := a % b;
+  WRITE a;
+END

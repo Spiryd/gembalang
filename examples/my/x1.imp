@@ -1,0 +1,34 @@
+PROGRAM IS
+  a
+IN
+  a := 0;
+  WHILE a <= 10 DO
+    a := a + 1;
+  ENDWHILE
+  WRITE a;
+  a := 0;
+  WHILE a < 10 DO
+    a := a + 1;
+  ENDWHILE
+  WRITE a;
+  a := 0;
+  WHILE a = 0 DO
+    a := a + 1;
+  ENDWHILE
+  WRITE a;
+  a := 0;
+  WHILE a != 10 DO
+    a := a + 1;
+  ENDWHILE
+  WRITE a;
+  a := 11;
+  WHILE a > 10 DO
+    a := a - 1;
+  ENDWHILE
+  WRITE a;
+  a := 11;
+  WHILE a >= 10 DO
+    a := a - 1;
+  ENDWHILE
+  WRITE a;
+END

@@ -393,12 +393,12 @@ impl Assembler {
                         cond_instructions.extend(self.extract_value(value_1));
                         cond_instructions.push(Instruction::Put(C));
                         cond_instructions.push(Instruction::Sub(B));
-                        cond_instructions
-                            .push(Instruction::Jzero(sub_instructions_length as i64 + 5));
+                        cond_instructions.push(Instruction::Jpos(5));
                         cond_instructions.push(Instruction::Get(B));
                         cond_instructions.push(Instruction::Sub(C));
+                        cond_instructions.push(Instruction::Jpos(2));
                         cond_instructions
-                            .push(Instruction::Jzero(sub_instructions_length as i64 + 2));
+                            .push(Instruction::Jump(sub_instructions_length as i64 + 2));
                         cond_instructions
                     }
                     Condition::Greater(value_0, value_1) => {
@@ -489,13 +489,12 @@ impl Assembler {
                         cond_instructions.push(Instruction::Sub(B));
                         let cond_instructions_length: u64 =
                             cond_instructions.iter().map(|i| i.len()).sum();
-                        cond_instructions.push(Instruction::Jzero(
-                            -((cond_instructions_length + sub_instructions_length) as i64),
-                        ));
+                        cond_instructions.push(Instruction::Jpos(5));
                         cond_instructions.push(Instruction::Get(B));
                         cond_instructions.push(Instruction::Sub(C));
-                        cond_instructions.push(Instruction::Jzero(
-                            -((cond_instructions_length + sub_instructions_length + 3) as i64),
+                        cond_instructions.push(Instruction::Jpos(2));
+                        cond_instructions.push(Instruction::Jump(
+                            -((cond_instructions_length + sub_instructions_length) as i64),
                         ));
                         cond_instructions
                     }
@@ -670,20 +669,6 @@ impl Assembler {
         }
     }
 }
-
-fn construct_condition(condition: Condition, jump_value: i64) -> Vec<Instruction> {
-    let instructions: Vec<Instruction> = Vec::new();
-    match condition {
-        Condition::Equal(_, _) => todo!(),
-        Condition::NotEqual(_, _) => todo!(),
-        Condition::Greater(_, _) => todo!(),
-        Condition::Lower(_, _) => todo!(),
-        Condition::GreaterOrEqual(_, _) => todo!(),
-        Condition::LowerOrEqual(_, _) => todo!(),
-    }
-    instructions
-}
-
 /// Puts the `num` into the `A` register
 fn get_number(mut num: u64) -> Vec<Instruction> {
     let mut instructions: Vec<Instruction> = Vec::new();

@@ -158,4 +158,4 @@ Identifier: Identifier = {
 
 Num: Num = <s:r"[0-9]+"> => u64::from_str(s).unwrap();
 
-Pidentifier: Pidentifier = <s:r"[_a-z]+"> => s.to_string();
+Pidentifier: Pidentifier = <start: @L> <s:r"[_a-z]+"> => (s.to_string(), start);

@@ -1,6 +1,6 @@
 pub type Num = u64;
 
-pub type Pidentifier = String;
+pub type Pidentifier = (String, usize);
 
 #[derive(Debug, Clone)]
 pub enum Identifier {

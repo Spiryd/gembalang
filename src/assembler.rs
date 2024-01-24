@@ -1,11 +1,23 @@
 use std::{
-    collections::{HashMap, VecDeque},
-    fmt::Display,
+    collections::{HashMap, HashSet, VecDeque}, fmt::Display
 };
 
 use crate::ast::*;
 
 use Register::*;
+
+#[derive(Debug, Clone)]
+pub enum CompilerError {
+    UndeclaredVariable(String, usize),
+    UndeclaredProcedure(String, usize),
+    IncorrectUseOfVariable(String, usize),
+    IndexOutOfBounds(String, usize),
+    ArrayUsedAsIndex(String, usize),
+    WrongArgumentType(String, usize),
+    DuplicateVariableDeclaration(String, usize),
+    DuplicateProcedureDeclaration(String, usize),
+    RecursiveProcedureCall(String, usize),
+}
 
 #[allow(dead_code)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -80,44 +92,214 @@ enum VariableVariant {
     Table(u64, u64),
 }
 
+#[derive(Debug, Clone)]
+struct ProcedureBuilder {
+    name: String,
+    declared_arguments: Vec<ArgumentsDeclarationVariant>,
+    declarations: Option<Declarations>,
+    commands: Commands,
+}
+
+impl ProcedureBuilder {
+    pub fn new(procedure: Procedure) -> ProcedureBuilder {
+        let mut pb = ProcedureBuilder {
+            name: procedure.0.0.0,
+            declared_arguments: procedure.0 .1,
+            declarations: procedure.1,
+            commands: procedure.2,
+        };
+        pb.rename_commands();
+        pb
+    }
+    fn rename_commands(&mut self){
+        let new_commands: Vec<Command> = self.commands
+            .iter()
+            .cloned()
+            .map(|com| self.rename_command(com))
+            .collect();
+        self.commands = new_commands;
+    }
+    fn rename_command(&self, command: Command) -> Command {
+        match command {
+            Command::Assign(id, expression) => {
+                let new_id = self.rename_indentifier(id);
+                let new_expression = match expression {
+                    Expression::Val(value) => {
+                        let new_value = self.rename_value(value);
+                        Expression::Val(new_value)
+                    }
+                    Expression::Add(value0, value1) => {
+                        let new_value0 = self.rename_value(value0);
+                        let new_value1 = self.rename_value(value1);
+                        Expression::Add(new_value0, new_value1)
+                    }
+                    Expression::Substract(value0, value1) => {
+                        let new_value0 = self.rename_value(value0);
+                        let new_value1 = self.rename_value(value1);
+                        Expression::Substract(new_value0, new_value1)
+                    }
+                    Expression::Multiply(value0, value1) => {
+                        let new_value0 = self.rename_value(value0);
+                        let new_value1 = self.rename_value(value1);
+                        Expression::Multiply(new_value0, new_value1)
+                    }
+                    Expression::Divide(value0, value1) => {
+                        let new_value0 = self.rename_value(value0);
+                        let new_value1 = self.rename_value(value1);
+                        Expression::Divide(new_value0, new_value1)
+                    }
+                    Expression::Modulo(value0, value1) => {
+                        let new_value0 = self.rename_value(value0);
+                        let new_value1 = self.rename_value(value1);
+                        Expression::Modulo(new_value0, new_value1)
+                    }
+                };
+                Command::Assign(new_id, new_expression)
+            }
+            Command::If(condition, commands, else_commands) => {
+                let new_condition = self.rename_condition(condition);
+                let new_commands: Vec<Command> = commands
+                    .iter()
+                    .cloned()
+                    .map(|com| self.rename_command(com))
+                    .collect();
+                let new_else_condition: Option<Vec<Command>> = else_commands.map(|else_commands| else_commands
+                            .iter()
+                            .cloned()
+                            .map(|com| self.rename_command(com))
+                            .collect());
+                Command::If(new_condition, new_commands, new_else_condition)
+            }
+            Command::While(condition, commands) => {
+                let new_condition = self.rename_condition(condition);
+                let new_commands: Vec<Command> = commands
+                    .iter()
+                    .cloned()
+                    .map(|com| self.rename_command(com))
+                    .collect();
+                Command::While(new_condition, new_commands)
+            }
+            Command::Repeat(commands, condition) => {
+                let new_condition = self.rename_condition(condition);
+                let new_commands: Vec<Command> = commands
+                    .iter()
+                    .cloned()
+                    .map(|com| self.rename_command(com))
+                    .collect();
+                Command::Repeat(new_commands, new_condition)
+            }
+            Command::ProcCall((name, arguments)) => {
+                let new_arguments: Vec<(String, usize)> = arguments.iter().map(|arg| (format!("{}@{}", arg.0, self.name), arg.1)).collect();
+                Command::ProcCall((name, new_arguments))
+            },
+            Command::Read(identifier) => {
+                let new_identifier = self.rename_indentifier(identifier);
+                Command::Read(new_identifier)
+            },
+            Command::Write(value) => {
+                let new_value = self.rename_value(value);
+                Command::Write(new_value)
+            },
+        }
+    }
+    fn rename_condition(&self, condition: Condition) -> Condition {
+        match condition {
+            Condition::Equal(value0, value1) => {
+                let new_value0 = self.rename_value(value0);
+                let new_value1 = self.rename_value(value1);
+                Condition::Equal(new_value0, new_value1)
+            }
+            Condition::NotEqual(value0, value1) => {
+                let new_value0 = self.rename_value(value0);
+                let new_value1 = self.rename_value(value1);
+                Condition::NotEqual(new_value0, new_value1)
+            }
+            Condition::Greater(value0, value1) => {
+                let new_value0 = self.rename_value(value0);
+                let new_value1 = self.rename_value(value1);
+                Condition::Greater(new_value0, new_value1)
+            }
+            Condition::Lower(value0, value1) => {
+                let new_value0 = self.rename_value(value0);
+                let new_value1 = self.rename_value(value1);
+                Condition::Lower(new_value0, new_value1)
+            }
+            Condition::GreaterOrEqual(value0, value1) => {
+                let new_value0 = self.rename_value(value0);
+                let new_value1 = self.rename_value(value1);
+                Condition::GreaterOrEqual(new_value0, new_value1)
+            }
+            Condition::LowerOrEqual(value0, value1) => {
+                let new_value0 = self.rename_value(value0);
+                let new_value1 = self.rename_value(value1);
+                Condition::LowerOrEqual(new_value0, new_value1)
+            }
+        }
+    }
+    fn rename_value(&self, value: Value) -> Value {
+        match value {
+            Value::Num(_) => value.clone(),
+            Value::Id(id) => Value::Id(self.rename_indentifier(id)),
+        }
+    }
+    fn rename_indentifier(&self, identifier: Identifier) -> Identifier {
+        match identifier {
+            Identifier::Base(id) => Identifier::Base((format!("{}@{}", id.0, self.name), id.1)),
+            Identifier::NumIndexed(id, num) => {
+                Identifier::NumIndexed((format!("{}@{}", id.0, self.name), id.1), num)
+            }
+            Identifier::PidIndexed(id, index_id) => Identifier::PidIndexed(
+                (format!("{}@{}", id.0, self.name), id.1),
+                (format!("{}@{}", index_id.0, self.name), id.1),
+            ),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Assembler {
     pseudo_assembly: Vec<Instruction>,
-    _procedures: HashMap<String, ()>,
-    variables: HashMap<String, VariableVariant>,
+    procedures: HashMap<String, ProcedureBuilder>,
+    memory: HashMap<String, VariableVariant>,
+    initialisated_variables: HashSet<String>,
+    memory_pointer: u64,
     ast: Program,
 }
 
 impl Assembler {
-    pub fn new(ast: Program) -> Assembler {
-        let mut _procedures: HashMap<String, ()> = HashMap::new();
+    pub fn new(ast: Program) -> Result<Assembler, CompilerError> {
+        let mut procedures: HashMap<String, ProcedureBuilder> = HashMap::new();
         if let Some(procedures_ast) = ast.0.clone() {
             for procedure in procedures_ast {
-                _procedures.insert(procedure.0 .0.clone(), ());
+                if procedures.insert(procedure.0.0.0.clone(), ProcedureBuilder::new(procedure.clone())).is_some() {
+                    Err(CompilerError::DuplicateProcedureDeclaration(procedure.0.0.0.clone(), procedure.0.0.1.clone()))?;
+                }
             }
         }
-        let mut memory_pointer = 0;
-        let mut variables: HashMap<String, VariableVariant> = HashMap::new();
+        let mut memory_pointer: u64 = 0;
+        let mut memory: HashMap<String, VariableVariant> = HashMap::new();
         if let Some(vars) = ast.1 .0.clone() {
             for var in vars {
                 match var {
                     DeclarationVariant::Base(id) => {
-                        variables.insert(id, VariableVariant::Atomic(memory_pointer));
+                        memory.insert(id.0, VariableVariant::Atomic(memory_pointer));
                         memory_pointer += 1;
                     }
                     DeclarationVariant::NumIndexed(id, size) => {
-                        variables.insert(id, VariableVariant::Table(memory_pointer, size));
+                        memory.insert(id.0, VariableVariant::Table(memory_pointer, size));
                         memory_pointer += size;
                     }
                 }
             }
         }
-        Assembler {
+        Ok(Assembler {
             pseudo_assembly: vec![],
-            _procedures,
-            variables,
+            procedures,
+            memory,
+            memory_pointer,
             ast,
-        }
+            initialisated_variables: HashSet::new(),
+        })
     }
     pub fn assemble(&self) -> String {
         let mut assembly: Vec<String> = Vec::new();
@@ -149,75 +331,75 @@ impl Assembler {
                 Instruction::Jumpr => todo!(),
                 Instruction::Halt => assembly.push("HALT\n".to_string()),
                 Instruction::Mul => {
-                    assembly.push(format!("PUT e\n")); // 0 1
-                    assembly.push(format!("RST d\n"));
-                    assembly.push(format!("GET c\n")); // 2 3
+                    assembly.push("PUT e\n".to_string()); // 0 1
+                    assembly.push("RST d\n".to_string());
+                    assembly.push("GET c\n".to_string()); // 2 3
                     assembly.push(format!("JZERO {}\n", assembly.len() + 14)); // 3 4
-                    assembly.push(format!("SHR e\n"));
-                    assembly.push(format!("SHL e\n"));
-                    assembly.push(format!("GET c\n"));
-                    assembly.push(format!("SUB e\n"));
+                    assembly.push("SHR e\n".to_string());
+                    assembly.push("SHL e\n".to_string());
+                    assembly.push("GET c\n".to_string());
+                    assembly.push("SUB e\n".to_string());
                     assembly.push(format!("JZERO {}\n", assembly.len() + 4)); // 8 9
-                    assembly.push(format!("GET d\n"));
-                    assembly.push(format!("ADD b\n"));
-                    assembly.push(format!("PUT d\n"));
-                    assembly.push(format!("SHL b\n"));
-                    assembly.push(format!("SHR c\n"));
-                    assembly.push(format!("GET c\n"));
-                    assembly.push(format!("PUT e\n"));
+                    assembly.push("GET d\n".to_string());
+                    assembly.push("ADD b\n".to_string());
+                    assembly.push("PUT d\n".to_string());
+                    assembly.push("SHL b\n".to_string());
+                    assembly.push("SHR c\n".to_string());
+                    assembly.push("GET c\n".to_string());
+                    assembly.push("PUT e\n".to_string());
                     assembly.push(format!("JUMP {}\n", assembly.len() - 14)); // 16  17
-                    assembly.push(format!("GET d\n")); // 17 18
+                    assembly.push("GET d\n".to_string()); // 17 18
                 }
                 Instruction::Div => {
-                    assembly.push(format!("RST d\n")); // 0 1
+                    assembly.push("RST d\n".to_string()); // 0 1
                     assembly.push(format!("JZERO {}\n", assembly.len() + 21)); // 1 2
-                    assembly.push(format!("GET c\n")); // 2 3
-                    assembly.push(format!("SUB b\n"));
+                    assembly.push("GET c\n".to_string()); // 2 3
+                    assembly.push("SUB b\n".to_string());
                     assembly.push(format!("JPOS {}\n", assembly.len() + 18)); // 4 5
-                    assembly.push(format!("GET c\n"));
-                    assembly.push(format!("PUT e\n"));
-                    assembly.push(format!("RST f\n"));
-                    assembly.push(format!("INC f\n"));
-                    assembly.push(format!("GET e\n")); // 9 10
-                    assembly.push(format!("SUB b\n"));
+                    assembly.push("GET c\n".to_string());
+                    assembly.push("PUT e\n".to_string());
+                    assembly.push("RST f\n".to_string());
+                    assembly.push("INC f\n".to_string());
+                    assembly.push("GET e\n".to_string()); // 9 10
+                    assembly.push("SUB b\n".to_string());
                     assembly.push(format!("JPOS {}\n", assembly.len() + 10)); // 11 12
-                    assembly.push(format!("GET b\n"));
-                    assembly.push(format!("SUB e\n"));
-                    assembly.push(format!("PUT b\n"));
-                    assembly.push(format!("GET d\n"));
-                    assembly.push(format!("ADD f\n"));
-                    assembly.push(format!("PUT d\n"));
-                    assembly.push(format!("SHL e\n"));
-                    assembly.push(format!("SHL f\n"));
+                    assembly.push("GET b\n".to_string());
+                    assembly.push("SUB e\n".to_string());
+                    assembly.push("PUT b\n".to_string());
+                    assembly.push("GET d\n".to_string());
+                    assembly.push("ADD f\n".to_string());
+                    assembly.push("PUT d\n".to_string());
+                    assembly.push("SHL e\n".to_string());
+                    assembly.push("SHL f\n".to_string());
                     assembly.push(format!("JUMP {}\n", assembly.len() - 11)); // 20 21
                     assembly.push(format!("JUMP {}\n", assembly.len() - 19)); // 21 22
-                    assembly.push(format!("GET d\n")); // 22 23
+                    assembly.push("GET d\n".to_string()); // 22 23
                 }
                 Instruction::Mod => {
-                    assembly.push(format!("RST d\n")); // 0 1
+                    assembly.push("RST d\n".to_string()); // 0 1
                     assembly.push(format!("JZERO {}\n", assembly.len() + 21)); // 1 2
-                    assembly.push(format!("GET c\n")); // 2 3
-                    assembly.push(format!("SUB b\n"));
+                    assembly.push("GET c\n".to_string()); // 2 3
+                    assembly.push("SUB b\n".to_string());
                     assembly.push(format!("JPOS {}\n", assembly.len() + 19)); // 4 5
-                    assembly.push(format!("GET c\n"));
-                    assembly.push(format!("PUT e\n"));
-                    assembly.push(format!("RST f\n"));
-                    assembly.push(format!("INC f\n"));
-                    assembly.push(format!("GET e\n")); // 9 10
-                    assembly.push(format!("SUB b\n"));
+                    assembly.push("GET c\n".to_string());
+                    assembly.push("PUT e\n".to_string());
+                    assembly.push("RST f\n".to_string());
+                    assembly.push("INC f\n".to_string());
+                    assembly.push("GET e\n".to_string()); // 9 10
+                    assembly.push("SUB b\n".to_string());
                     assembly.push(format!("JPOS {}\n", assembly.len() + 10)); // 11 12
-                    assembly.push(format!("GET b\n"));
-                    assembly.push(format!("SUB e\n"));
-                    assembly.push(format!("PUT b\n"));
-                    assembly.push(format!("GET d\n"));
-                    assembly.push(format!("ADD f\n"));
-                    assembly.push(format!("PUT d\n"));
-                    assembly.push(format!("SHL e\n"));
-                    assembly.push(format!("SHL f\n"));
+                    assembly.push("GET b\n".to_string());
+                    assembly.push("SUB e\n".to_string());
+                    assembly.push("PUT b\n".to_string());
+                    assembly.push("GET d\n".to_string());
+                    assembly.push("ADD f\n".to_string());
+                    assembly.push("PUT d\n".to_string());
+                    assembly.push("SHL e\n".to_string());
+                    assembly.push("SHL f\n".to_string());
                     assembly.push(format!("JUMP {}\n", assembly.len() - 11)); // 20 21
                     assembly.push(format!("JUMP {}\n", assembly.len() - 19)); // 21 22
-                    assembly.push(format!("RST b\n")); // 22 23
-                    assembly.push(format!("GET b\n")); // 23 24
+                    assembly.push("RST b\n".to_string()); // 22 23
+                    assembly.push("GET b\n".to_string()); // 23 24
                 }
             }
         }
@@ -227,37 +409,43 @@ impl Assembler {
         }
         assembled
     }
-    pub fn construct(&mut self) {
-        self.construct_main();
+    pub fn construct(&mut self) -> Result<(), CompilerError>{
+        self.construct_main()?;
         self.pseudo_assembly.push(Instruction::Halt);
+        Ok(())
     }
-    fn construct_main(&mut self) {
-        for command in self.ast.1 .1.clone() {
-            self.pseudo_assembly.extend(self.construct_command(command));
+    fn construct_main(&mut self) -> Result<(), CompilerError>{
+        let commands = self.ast.1 .1.clone();
+        let mut constructed_commands: Vec<Vec<Instruction>> = vec![];
+        for command in commands {
+            constructed_commands.push(self.construct_command(command)?)
         }
+        for command in constructed_commands {
+            self.pseudo_assembly.extend(command);
+        }
+        Ok(())
     }
-    fn construct_command(&self, command: Command) -> Vec<Instruction> {
+    fn construct_command(&mut self, command: Command) -> Result<Vec<Instruction>, CompilerError> {
         match command {
             Command::Assign(identifier, expression) => {
                 let mut instructions: Vec<Instruction> = Vec::new();
-                instructions.extend(self.get_pointer_from_identifier(identifier));
+                instructions.extend(self.get_pointer_from_identifier(identifier)?);
                 instructions.push(Instruction::Put(G));
-                instructions.extend(self.construct_expression(expression));
+                instructions.extend(self.construct_expression(expression)?);
                 instructions.push(Instruction::Store(G));
-                instructions
+                Ok(instructions)
             }
-            // Optimise by deleting jump when no else
             Command::If(condition, commands, else_commands) => {
                 let mut instructions: Vec<Instruction> = Vec::new();
                 let mut sub_instuctions: Vec<Instruction> = Vec::new();
                 for command in commands {
-                    sub_instuctions.extend(self.construct_command(command));
+                    sub_instuctions.extend(self.construct_command(command)?);
                 }
                 let sub_instructions_length: u64 = sub_instuctions.iter().map(|i| i.len()).sum();
                 let mut sub_else_instuctions: Vec<Instruction> = Vec::new();
                 if let Some(else_commands) = else_commands {
                     for command in else_commands {
-                        sub_else_instuctions.extend(self.construct_command(command));
+                        sub_else_instuctions.extend(self.construct_command(command)?);
                     }
                 }
                 let sub_else_instruction_length: u64 =
@@ -265,9 +453,9 @@ impl Assembler {
                 match condition {
                     Condition::Equal(value_0, value_1) => {
                         let mut cond_instructions: Vec<Instruction> = Vec::new();
-                        cond_instructions.extend(self.extract_value(value_0));
+                        cond_instructions.extend(self.extract_value(value_0)?);
                         cond_instructions.push(Instruction::Put(B));
-                        cond_instructions.extend(self.extract_value(value_1));
+                        cond_instructions.extend(self.extract_value(value_1)?);
                         cond_instructions.push(Instruction::Put(C));
                         cond_instructions.push(Instruction::Sub(B));
                         cond_instructions
@@ -285,9 +473,9 @@ impl Assembler {
                     }
                     Condition::NotEqual(value_0, value_1) => {
                         let mut cond_instructions: Vec<Instruction> = Vec::new();
-                        cond_instructions.extend(self.extract_value(value_0));
+                        cond_instructions.extend(self.extract_value(value_0)?);
                         cond_instructions.push(Instruction::Put(B));
-                        cond_instructions.extend(self.extract_value(value_1));
+                        cond_instructions.extend(self.extract_value(value_1)?);
                         cond_instructions.push(Instruction::Put(C));
                         cond_instructions.push(Instruction::Sub(B));
                         cond_instructions
@@ -304,9 +492,9 @@ impl Assembler {
                     }
                     Condition::Greater(value_0, value_1) => {
                         let mut cond_instructions: Vec<Instruction> = Vec::new();
-                        cond_instructions.extend(self.extract_value(value_1));
+                        cond_instructions.extend(self.extract_value(value_1)?);
                         cond_instructions.push(Instruction::Put(B));
-                        cond_instructions.extend(self.extract_value(value_0));
+                        cond_instructions.extend(self.extract_value(value_0)?);
                         cond_instructions.push(Instruction::Sub(B));
                         cond_instructions
                             .push(Instruction::Jpos(sub_else_instruction_length as i64 + 2));
@@ -318,9 +506,9 @@ impl Assembler {
                     }
                     Condition::Lower(value_0, value_1) => {
                         let mut cond_instructions: Vec<Instruction> = Vec::new();
-                        cond_instructions.extend(self.extract_value(value_0));
+                        cond_instructions.extend(self.extract_value(value_0)?);
                         cond_instructions.push(Instruction::Put(B));
-                        cond_instructions.extend(self.extract_value(value_1));
+                        cond_instructions.extend(self.extract_value(value_1)?);
                         cond_instructions.push(Instruction::Sub(B));
                         cond_instructions
                             .push(Instruction::Jpos(sub_else_instruction_length as i64 + 2));
@@ -332,9 +520,9 @@ impl Assembler {
                     }
                     Condition::GreaterOrEqual(value_0, value_1) => {
                         let mut cond_instructions: Vec<Instruction> = Vec::new();
-                        cond_instructions.extend(self.extract_value(value_0));
+                        cond_instructions.extend(self.extract_value(value_0)?);
                         cond_instructions.push(Instruction::Put(B));
-                        cond_instructions.extend(self.extract_value(value_1));
+                        cond_instructions.extend(self.extract_value(value_1)?);
                         cond_instructions.push(Instruction::Sub(B));
                         cond_instructions
                             .push(Instruction::Jpos(sub_instructions_length as i64 + 2));
@@ -347,9 +535,9 @@ impl Assembler {
                     }
                     Condition::LowerOrEqual(value_0, value_1) => {
                         let mut cond_instructions: Vec<Instruction> = Vec::new();
-                        cond_instructions.extend(self.extract_value(value_1));
+                        cond_instructions.extend(self.extract_value(value_1)?);
                         cond_instructions.push(Instruction::Put(B));
-                        cond_instructions.extend(self.extract_value(value_0));
+                        cond_instructions.extend(self.extract_value(value_0)?);
                         cond_instructions.push(Instruction::Sub(B));
                         cond_instructions
                             .push(Instruction::Jpos(sub_instructions_length as i64 + 2));
@@ -361,21 +549,21 @@ impl Assembler {
                         instructions.extend(sub_else_instuctions);
                     }
                 }
-                instructions
+                Ok(instructions)
             }
             Command::While(condition, commands) => {
                 let mut instructions: Vec<Instruction> = Vec::new();
                 let mut sub_instuctions: VecDeque<Instruction> = VecDeque::new();
                 for command in commands {
-                    sub_instuctions.extend(self.construct_command(command));
+                    sub_instuctions.extend(self.construct_command(command)?);
                 }
                 let sub_instructions_length: u64 = sub_instuctions.iter().map(|i| i.len()).sum();
                 let cond_instructions = match condition {
                     Condition::Equal(value_0, value_1) => {
                         let mut cond_instructions: Vec<Instruction> = Vec::new();
-                        cond_instructions.extend(self.extract_value(value_0));
+                        cond_instructions.extend(self.extract_value(value_0)?);
                         cond_instructions.push(Instruction::Put(B));
-                        cond_instructions.extend(self.extract_value(value_1));
+                        cond_instructions.extend(self.extract_value(value_1)?);
                         cond_instructions.push(Instruction::Put(C));
                         cond_instructions.push(Instruction::Sub(B));
                         cond_instructions
@@ -388,9 +576,9 @@ impl Assembler {
                     }
                     Condition::NotEqual(value_0, value_1) => {
                         let mut cond_instructions: Vec<Instruction> = Vec::new();
-                        cond_instructions.extend(self.extract_value(value_0));
+                        cond_instructions.extend(self.extract_value(value_0)?);
                         cond_instructions.push(Instruction::Put(B));
-                        cond_instructions.extend(self.extract_value(value_1));
+                        cond_instructions.extend(self.extract_value(value_1)?);
                         cond_instructions.push(Instruction::Put(C));
                         cond_instructions.push(Instruction::Sub(B));
                         cond_instructions.push(Instruction::Jpos(5));
@@ -403,9 +591,9 @@ impl Assembler {
                     }
                     Condition::Greater(value_0, value_1) => {
                         let mut cond_instructions: Vec<Instruction> = Vec::new();
-                        cond_instructions.extend(self.extract_value(value_1));
+                        cond_instructions.extend(self.extract_value(value_1)?);
                         cond_instructions.push(Instruction::Put(B));
-                        cond_instructions.extend(self.extract_value(value_0));
+                        cond_instructions.extend(self.extract_value(value_0)?);
                         cond_instructions.push(Instruction::Sub(B));
                         cond_instructions.push(Instruction::Jpos(2));
                         cond_instructions
@@ -414,9 +602,9 @@ impl Assembler {
                     }
                     Condition::Lower(value_0, value_1) => {
                         let mut cond_instructions: Vec<Instruction> = Vec::new();
-                        cond_instructions.extend(self.extract_value(value_0));
+                        cond_instructions.extend(self.extract_value(value_0)?);
                         cond_instructions.push(Instruction::Put(B));
-                        cond_instructions.extend(self.extract_value(value_1));
+                        cond_instructions.extend(self.extract_value(value_1)?);
                         cond_instructions.push(Instruction::Sub(B));
                         cond_instructions.push(Instruction::Jpos(2));
                         cond_instructions
@@ -425,9 +613,9 @@ impl Assembler {
                     }
                     Condition::GreaterOrEqual(value_0, value_1) => {
                         let mut cond_instructions: Vec<Instruction> = Vec::new();
-                        cond_instructions.extend(self.extract_value(value_0));
+                        cond_instructions.extend(self.extract_value(value_0)?);
                         cond_instructions.push(Instruction::Put(B));
-                        cond_instructions.extend(self.extract_value(value_1));
+                        cond_instructions.extend(self.extract_value(value_1)?);
                         cond_instructions.push(Instruction::Sub(B));
                         cond_instructions
                             .push(Instruction::Jpos(sub_instructions_length as i64 + 2));
@@ -435,9 +623,9 @@ impl Assembler {
                     }
                     Condition::LowerOrEqual(value_0, value_1) => {
                         let mut cond_instructions: Vec<Instruction> = Vec::new();
-                        cond_instructions.extend(self.extract_value(value_1));
+                        cond_instructions.extend(self.extract_value(value_1)?);
                         cond_instructions.push(Instruction::Put(B));
-                        cond_instructions.extend(self.extract_value(value_0));
+                        cond_instructions.extend(self.extract_value(value_0)?);
                         cond_instructions.push(Instruction::Sub(B));
                         cond_instructions
                             .push(Instruction::Jpos(sub_instructions_length as i64 + 2));
@@ -450,22 +638,22 @@ impl Assembler {
                 instructions.push(Instruction::Jump(
                     -((sub_instructions_length + cond_instructions_length) as i64),
                 ));
-                instructions
+                Ok(instructions)
             }
             Command::Repeat(commands, condition) => {
                 let mut instructions: Vec<Instruction> = Vec::new();
                 let mut sub_instuctions: VecDeque<Instruction> = VecDeque::new();
                 for command in commands {
-                    sub_instuctions.extend(self.construct_command(command));
+                    sub_instuctions.extend(self.construct_command(command)?);
                 }
                 let sub_instructions_length: u64 = sub_instuctions.iter().map(|i| i.len()).sum();
 
                 let cond_instructions = match condition {
                     Condition::Equal(value_0, value_1) => {
                         let mut cond_instructions: Vec<Instruction> = Vec::new();
-                        cond_instructions.extend(self.extract_value(value_0));
+                        cond_instructions.extend(self.extract_value(value_0)?);
                         cond_instructions.push(Instruction::Put(B));
-                        cond_instructions.extend(self.extract_value(value_1));
+                        cond_instructions.extend(self.extract_value(value_1)?);
                         cond_instructions.push(Instruction::Put(C));
                         cond_instructions.push(Instruction::Sub(B));
                         let cond_instructions_length: u64 =
@@ -482,9 +670,9 @@ impl Assembler {
                     }
                     Condition::NotEqual(value_0, value_1) => {
                         let mut cond_instructions: Vec<Instruction> = Vec::new();
-                        cond_instructions.extend(self.extract_value(value_0));
+                        cond_instructions.extend(self.extract_value(value_0)?);
                         cond_instructions.push(Instruction::Put(B));
-                        cond_instructions.extend(self.extract_value(value_1));
+                        cond_instructions.extend(self.extract_value(value_1)?);
                         cond_instructions.push(Instruction::Put(C));
                         cond_instructions.push(Instruction::Sub(B));
                         let cond_instructions_length: u64 =
@@ -500,9 +688,9 @@ impl Assembler {
                     }
                     Condition::Greater(value_0, value_1) => {
                         let mut cond_instructions: Vec<Instruction> = Vec::new();
-                        cond_instructions.extend(self.extract_value(value_1));
+                        cond_instructions.extend(self.extract_value(value_1)?);
                         cond_instructions.push(Instruction::Put(B));
-                        cond_instructions.extend(self.extract_value(value_0));
+                        cond_instructions.extend(self.extract_value(value_0)?);
                         cond_instructions.push(Instruction::Sub(B));
                         cond_instructions.push(Instruction::Jpos(2));
                         let cond_instructions_length: u64 =
@@ -514,9 +702,9 @@ impl Assembler {
                     }
                     Condition::Lower(value_0, value_1) => {
                         let mut cond_instructions: Vec<Instruction> = Vec::new();
-                        cond_instructions.extend(self.extract_value(value_0));
+                        cond_instructions.extend(self.extract_value(value_0)?);
                         cond_instructions.push(Instruction::Put(B));
-                        cond_instructions.extend(self.extract_value(value_1));
+                        cond_instructions.extend(self.extract_value(value_1)?);
                         cond_instructions.push(Instruction::Sub(B));
                         cond_instructions.push(Instruction::Jpos(2));
                         let cond_instructions_length: u64 =
@@ -528,9 +716,9 @@ impl Assembler {
                     }
                     Condition::GreaterOrEqual(value_0, value_1) => {
                         let mut cond_instructions: Vec<Instruction> = Vec::new();
-                        cond_instructions.extend(self.extract_value(value_0));
+                        cond_instructions.extend(self.extract_value(value_0)?);
                         cond_instructions.push(Instruction::Put(B));
-                        cond_instructions.extend(self.extract_value(value_1));
+                        cond_instructions.extend(self.extract_value(value_1)?);
                         cond_instructions.push(Instruction::Sub(B));
                         let cond_instructions_length: u64 =
                             cond_instructions.iter().map(|i| i.len()).sum();
@@ -541,9 +729,9 @@ impl Assembler {
                     }
                     Condition::LowerOrEqual(value_0, value_1) => {
                         let mut cond_instructions: Vec<Instruction> = Vec::new();
-                        cond_instructions.extend(self.extract_value(value_1));
+                        cond_instructions.extend(self.extract_value(value_1)?);
                         cond_instructions.push(Instruction::Put(B));
-                        cond_instructions.extend(self.extract_value(value_0));
+                        cond_instructions.extend(self.extract_value(value_0)?);
                         cond_instructions.push(Instruction::Sub(B));
                         let cond_instructions_length: u64 =
                             cond_instructions.iter().map(|i| i.len()).sum();
@@ -555,116 +743,184 @@ impl Assembler {
                 };
                 instructions.extend(sub_instuctions);
                 instructions.extend(cond_instructions);
-                instructions
+                Ok(instructions)
             }
-            Command::ProcCall(_) => todo!(),
+            Command::ProcCall((procedure_id, arguments)) => {
+                let mut instructions: Vec<Instruction> = Vec::new();
+                let ids: Vec<String> = arguments.iter().map(|arg| arg.0.clone()).collect();
+                for id in ids {
+                    if  (&id).contains(&format!("@{}", procedure_id.0)) {
+                        return Err(CompilerError::RecursiveProcedureCall(procedure_id.0, procedure_id.1));
+                    }
+                }
+                
+                let builder = self.procedures.clone().get(&procedure_id.0).ok_or(CompilerError::UndeclaredProcedure(procedure_id.0.clone(), procedure_id.1))?.clone();
+                if let Some(declarations) = &builder.declarations {
+                    for declaration in declarations {
+                        match declaration {
+                            DeclarationVariant::Base(id) => {
+                                self.memory.insert(format!("{}@{}", id.0, procedure_id.0), VariableVariant::Atomic(self.memory_pointer));
+                                self.memory_pointer += 1;
+                            },
+                            DeclarationVariant::NumIndexed(id, length) => {
+                                self.memory.insert(format!("{}@{}", id.0, procedure_id.0), VariableVariant::Table(self.memory_pointer, *length));
+                                self.memory_pointer += length;
+                            },
+                        }
+                    }
+                }
+
+                for (argument, declared_argument) in arguments.iter().zip(&builder.declared_arguments) {
+                    if let Some(declarations) = &builder.declarations{
+                        for declaration in declarations {
+                            let id = match declaration {
+                                DeclarationVariant::Base(id) => id,
+                                DeclarationVariant::NumIndexed(id, _) => id,
+                            };
+                            if id.0 == argument.0 {
+                                return Err(CompilerError::DuplicateVariableDeclaration(argument.0.clone(), argument.1));
+                            }
+                        }
+                    }                    
+                    let pointee = self.memory.get(argument.0.as_str()).unwrap();
+                    match declared_argument {
+                        ArgumentsDeclarationVariant::Base(id) => {
+                            match pointee {
+                                VariableVariant::Atomic(pointer) => {
+                                    self.memory.insert(format!("{}@{}", id.0, procedure_id.0), VariableVariant::Atomic(*pointer));
+                                },
+                                VariableVariant::Table(_, _) => return Err(CompilerError::WrongArgumentType(id.0.clone(), id.1)),
+                            }
+                        },
+                        ArgumentsDeclarationVariant::Table(id) => {
+                            match pointee {
+                                VariableVariant::Atomic(_) => return Err(CompilerError::WrongArgumentType(id.0.clone(), id.1)),
+                                VariableVariant::Table(start, size) => {
+                                    self.memory.insert(format!("{}@{}", id.0, procedure_id.0), VariableVariant::Table(*start, *size));
+                                },
+                            }
+                        },
+                    }
+                }
+                for command in &builder.commands {
+                    instructions.extend(self.construct_command(command.clone())?);
+                }
+                Ok(instructions)
+            }
             Command::Read(identifier) => {
                 let mut instructions: Vec<Instruction> = Vec::new();
-                instructions.extend(self.get_pointer_from_identifier(identifier));
+                instructions.extend(self.get_pointer_from_identifier(identifier)?);
                 instructions.push(Instruction::Put(G));
                 instructions.push(Instruction::Read);
                 instructions.push(Instruction::Store(G));
-                instructions
+                Ok(instructions)
             }
             Command::Write(value) => {
-                let mut instructions: Vec<Instruction> = self.extract_value(value);
+                let mut instructions: Vec<Instruction> = self.extract_value(value)?;
                 instructions.push(Instruction::Write);
-                instructions
+                Ok(instructions)
             }
         }
     }
     /// Constructs expressions into PseudoAssembly
-    fn construct_expression(&self, expression: Expression) -> Vec<Instruction> {
+    fn construct_expression(&self, expression: Expression) -> Result<Vec<Instruction>, CompilerError> {
         match expression {
             Expression::Val(value) => self.extract_value(value),
             Expression::Add(value_0, value_1) => {
-                let mut instructions = self.extract_value(value_0);
+                let mut instructions = self.extract_value(value_0)?;
                 instructions.push(Instruction::Put(B));
-                instructions.extend(self.extract_value(value_1));
+                instructions.extend(self.extract_value(value_1)?);
                 instructions.push(Instruction::Add(B));
-                instructions
+                Ok(instructions)
             }
             Expression::Substract(value_0, value_1) => {
-                let mut instructions = self.extract_value(value_1);
+                let mut instructions = self.extract_value(value_1)?;
                 instructions.push(Instruction::Put(B));
-                instructions.extend(self.extract_value(value_0));
+                instructions.extend(self.extract_value(value_0)?);
                 instructions.push(Instruction::Sub(B));
-                instructions
+                Ok(instructions)
             }
             Expression::Multiply(value_0, value_1) => {
-                let mut instructions = self.extract_value(value_0);
+                let mut instructions = self.extract_value(value_0)?;
                 instructions.push(Instruction::Put(B));
-                instructions.extend(self.extract_value(value_1));
+                instructions.extend(self.extract_value(value_1)?);
                 instructions.push(Instruction::Put(C));
                 instructions.push(Instruction::Mul);
-                instructions
+                Ok(instructions)
             }
             Expression::Divide(value_0, value_1) => {
-                let mut instructions = self.extract_value(value_0);
+                let mut instructions = self.extract_value(value_0)?;
                 instructions.push(Instruction::Put(B));
-                instructions.extend(self.extract_value(value_1));
+                instructions.extend(self.extract_value(value_1)?);
                 instructions.push(Instruction::Put(C));
                 instructions.push(Instruction::Div);
-                instructions
+                Ok(instructions)
             }
             Expression::Modulo(value_0, value_1) => {
-                let mut instructions = self.extract_value(value_0);
+                let mut instructions = self.extract_value(value_0)?;
                 instructions.push(Instruction::Put(B));
-                instructions.extend(self.extract_value(value_1));
+                instructions.extend(self.extract_value(value_1)?);
                 instructions.push(Instruction::Put(C));
                 instructions.push(Instruction::Mod);
-                instructions
+                Ok(instructions)
             }
         }
     }
     /// Gets the `value` and puts it into the `A` register
-    fn extract_value(&self, value: Value) -> Vec<Instruction> {
+    fn extract_value(&self, value: Value) -> Result<Vec<Instruction>, CompilerError> {
         match value {
-            Value::Num(num) => get_number(num),
+            Value::Num(num) => Ok(get_number(num)),
             Value::Id(identifier) => {
-                let mut sub_instructions = self.get_pointer_from_identifier(identifier);
+                let mut sub_instructions = self.get_pointer_from_identifier(identifier)?;
                 sub_instructions.push(Instruction::Load(A));
-                sub_instructions
+                Ok(sub_instructions)
             }
         }
     }
     /// Puts the pointer to `identifier` into the `A` register. Sometimes uses the `H` register.
-    fn get_pointer_from_identifier(&self, identifier: Identifier) -> Vec<Instruction> {
+    fn get_pointer_from_identifier(&self, identifier: Identifier) -> Result<Vec<Instruction>, CompilerError>{
         match identifier {
-            Identifier::Base(id) => match self.variables.get(&id).unwrap() {
-                VariableVariant::Atomic(pointer) => get_number(*pointer),
-                VariableVariant::Table(_, _) => panic!("`{id}` is not indexable"),
+            Identifier::Base(id) => {
+                let variable = self.memory.get(&id.0).ok_or(CompilerError::UndeclaredVariable(id.0.clone(), id.1))?;
+                match variable {
+                    VariableVariant::Atomic(pointer) => Ok(get_number(*pointer)),
+                    VariableVariant::Table(_, _) => Err(CompilerError::IncorrectUseOfVariable(id.0, id.1)),
+                }
             },
             Identifier::NumIndexed(id, num) => {
-                let (start, size) = match self.variables.get(&id).unwrap() {
+                let variable = self.memory.get(&id.0).ok_or(CompilerError::UndeclaredVariable(id.0.clone(), id.1))?;
+                let (start, size) = match variable {
                     VariableVariant::Atomic(_) => {
-                        panic!("`{id}` is a array and need to be indexed")
+                        return Err(CompilerError::IncorrectUseOfVariable(id.0, id.1));
                     }
                     VariableVariant::Table(pointer, size) => (*pointer, *size),
                 };
                 if num >= size {
-                    panic!("Index outside of scope, array");
+                    return Err(CompilerError::IndexOutOfBounds(id.0, id.1));
                 }
-                get_number(start + num)
+                Ok(get_number(start + num))
             }
             Identifier::PidIndexed(id, index_id) => {
                 let mut instructions: Vec<Instruction> = Vec::new();
-                match self.variables.get(&index_id).unwrap() {
+                let variable = self.memory.get(&index_id.0).ok_or(CompilerError::UndeclaredVariable(index_id.0.clone(), index_id.1))?;
+                match variable {
                     VariableVariant::Atomic(pointer) => instructions.extend(get_number(*pointer)),
-                    VariableVariant::Table(_, _) => panic!("cannot index with array"),
+                    VariableVariant::Table(_, _) => {
+                        return Err(CompilerError::ArrayUsedAsIndex(id.0, id.1));
+                    }
                 };
                 instructions.push(Instruction::Load(A));
                 instructions.push(Instruction::Put(H));
-                match self.variables.get(&id).unwrap() {
+                match self.memory.get(&id.0).unwrap() {
                     VariableVariant::Atomic(_) => {
-                        panic!("`{id}` is a array and need to be indexed")
+                        return Err(CompilerError::IncorrectUseOfVariable(id.0, id.1));
                     }
                     VariableVariant::Table(pointer, _) => {
                         instructions.extend(get_number(*pointer));
                     }
                 }
                 instructions.push(Instruction::Add(H));
-                instructions
+                Ok(instructions)
             }
         }
     }

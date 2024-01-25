@@ -19,6 +19,22 @@ pub enum CompilerError {
     RecursiveProcedureCall(String, usize),
 }
 
+impl CompilerError {
+    pub fn get_byte(&self) -> usize {
+        match self {
+            CompilerError::UndeclaredVariable(_, line) => *line,
+            CompilerError::UndeclaredProcedure(_, line) => *line,
+            CompilerError::IncorrectUseOfVariable(_, line) => *line,
+            CompilerError::IndexOutOfBounds(_, line) => *line,
+            CompilerError::ArrayUsedAsIndex(_, line) => *line,
+            CompilerError::WrongArgumentType(_, line) => *line,
+            CompilerError::DuplicateVariableDeclaration(_, line) => *line,
+            CompilerError::DuplicateProcedureDeclaration(_, line) => *line,
+            CompilerError::RecursiveProcedureCall(_, line) => *line,
+        }
+    }
+}
+
 #[allow(dead_code)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 enum Register {
@@ -429,6 +445,12 @@ impl Assembler {
         match command {
             Command::Assign(identifier, expression) => {
                 let mut instructions: Vec<Instruction> = Vec::new();
+                let id = match identifier.clone() {
+                    Identifier::Base(id) => id,
+                    Identifier::NumIndexed(id, _) => id,
+                    Identifier::PidIndexed(id, _) => id,
+                };
+                self.initialisated_variables.insert(id.0.clone());
                 instructions.extend(self.get_pointer_from_identifier(identifier)?);
                 instructions.push(Instruction::Put(G));
                 instructions.extend(self.construct_expression(expression)?);
@@ -777,8 +799,12 @@ impl Assembler {
                                 DeclarationVariant::Base(id) => id,
                                 DeclarationVariant::NumIndexed(id, _) => id,
                             };
-                            if id.0 == argument.0 {
-                                return Err(CompilerError::DuplicateVariableDeclaration(argument.0.clone(), argument.1));
+                            let arg_id = match declared_argument {
+                                ArgumentsDeclarationVariant::Base(id) => id,
+                                ArgumentsDeclarationVariant::Table(id) => id,
+                            };
+                            if id.0 == arg_id.0 {
+                                return Err(CompilerError::DuplicateVariableDeclaration(id.0.clone(), id.1));
                             }
                         }
                     }                    
@@ -787,7 +813,9 @@ impl Assembler {
                         ArgumentsDeclarationVariant::Base(id) => {
                             match pointee {
                                 VariableVariant::Atomic(pointer) => {
+                                    self.initialisated_variables.insert(argument.0.clone());
                                     self.memory.insert(format!("{}@{}", id.0, procedure_id.0), VariableVariant::Atomic(*pointer));
+                                    self.initialisated_variables.insert(format!("{}@{}", id.0, procedure_id.0));
                                 },
                                 VariableVariant::Table(_, _) => return Err(CompilerError::WrongArgumentType(id.0.clone(), id.1)),
                             }
@@ -796,7 +824,9 @@ impl Assembler {
                             match pointee {
                                 VariableVariant::Atomic(_) => return Err(CompilerError::WrongArgumentType(id.0.clone(), id.1)),
                                 VariableVariant::Table(start, size) => {
+                                    self.initialisated_variables.insert(argument.0.clone());
                                     self.memory.insert(format!("{}@{}", id.0, procedure_id.0), VariableVariant::Table(*start, *size));
+                                    self.initialisated_variables.insert(format!("{}@{}", id.0, procedure_id.0));
                                 },
                             }
                         },
@@ -808,6 +838,12 @@ impl Assembler {
                 Ok(instructions)
             }
             Command::Read(identifier) => {
+                let id = match identifier.clone() {
+                    Identifier::Base(id) => id,
+                    Identifier::NumIndexed(id, _) => id,
+                    Identifier::PidIndexed(id, _) => id,
+                };
+                self.initialisated_variables.insert(id.0.clone());
                 let mut instructions: Vec<Instruction> = Vec::new();
                 instructions.extend(self.get_pointer_from_identifier(identifier)?);
                 instructions.push(Instruction::Put(G));
@@ -825,30 +861,41 @@ impl Assembler {
     /// Constructs expressions into PseudoAssembly
     fn construct_expression(&self, expression: Expression) -> Result<Vec<Instruction>, CompilerError> {
         match expression {
-            Expression::Val(value) => self.extract_value(value),
+            Expression::Val(value) => {
+                self.check_if_initialised(value.clone());
+                self.extract_value(value)
+            },
             Expression::Add(value_0, value_1) => {
+                self.check_if_initialised(value_0.clone());
                 let mut instructions = self.extract_value(value_0)?;
                 instructions.push(Instruction::Put(B));
+                self.check_if_initialised(value_1.clone());
                 instructions.extend(self.extract_value(value_1)?);
                 instructions.push(Instruction::Add(B));
                 Ok(instructions)
             }
             Expression::Substract(value_0, value_1) => {
+                self.check_if_initialised(value_1.clone());
                 let mut instructions = self.extract_value(value_1)?;
                 instructions.push(Instruction::Put(B));
+                self.check_if_initialised(value_0.clone());
                 instructions.extend(self.extract_value(value_0)?);
                 instructions.push(Instruction::Sub(B));
                 Ok(instructions)
             }
             Expression::Multiply(value_0, value_1) => {
+                self.check_if_initialised(value_0.clone());
                 let mut instructions = self.extract_value(value_0)?;
                 instructions.push(Instruction::Put(B));
+                self.check_if_initialised(value_1.clone());
                 instructions.extend(self.extract_value(value_1)?);
                 instructions.push(Instruction::Put(C));
                 instructions.push(Instruction::Mul);
                 Ok(instructions)
             }
             Expression::Divide(value_0, value_1) => {
+                self.check_if_initialised(value_0.clone());
+                self.check_if_initialised(value_1.clone());
                 let mut instructions = self.extract_value(value_0)?;
                 instructions.push(Instruction::Put(B));
                 instructions.extend(self.extract_value(value_1)?);
@@ -857,6 +904,8 @@ impl Assembler {
                 Ok(instructions)
             }
             Expression::Modulo(value_0, value_1) => {
+                self.check_if_initialised(value_0.clone());
+                self.check_if_initialised(value_1.clone());
                 let mut instructions = self.extract_value(value_0)?;
                 instructions.push(Instruction::Put(B));
                 instructions.extend(self.extract_value(value_1)?);
@@ -902,6 +951,10 @@ impl Assembler {
             }
             Identifier::PidIndexed(id, index_id) => {
                 let mut instructions: Vec<Instruction> = Vec::new();
+                if !self.initialisated_variables.contains(&index_id.0) {
+                    let id_for_warning = index_id.0.split('@').next().unwrap().to_string();
+                    println!("Warning: Variable {} used before initialisation", id_for_warning)
+                }
                 let variable = self.memory.get(&index_id.0).ok_or(CompilerError::UndeclaredVariable(index_id.0.clone(), index_id.1))?;
                 match variable {
                     VariableVariant::Atomic(pointer) => instructions.extend(get_number(*pointer)),
@@ -922,6 +975,22 @@ impl Assembler {
                 instructions.push(Instruction::Add(H));
                 Ok(instructions)
             }
+        }
+    }
+    fn check_if_initialised(&self, value: Value) {
+        match value {
+            Value::Num(_) => {},
+            Value::Id(identifier) => {
+                let id = match identifier.clone() {
+                    Identifier::Base(id) => id,
+                    Identifier::NumIndexed(id, _) => id,
+                    Identifier::PidIndexed(id, _) => id,
+                };
+                if !self.initialisated_variables.contains(&id.0) {
+                    let id_for_warning = id.0.split('@').next().unwrap().to_string();
+                    println!("Warning: Variable {} used before initialisation", id_for_warning)
+                }
+            },
         }
     }
 }

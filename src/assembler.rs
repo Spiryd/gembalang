@@ -17,6 +17,7 @@ pub enum CompilerError {
     DuplicateVariableDeclaration(String, usize),
     DuplicateProcedureDeclaration(String, usize),
     RecursiveProcedureCall(String, usize),
+    WrongNumberOfArguments(String, usize),
 }
 
 impl CompilerError {
@@ -31,6 +32,7 @@ impl CompilerError {
             CompilerError::DuplicateVariableDeclaration(_, line) => *line,
             CompilerError::DuplicateProcedureDeclaration(_, line) => *line,
             CompilerError::RecursiveProcedureCall(_, line) => *line,
+            CompilerError::WrongNumberOfArguments(_, line) => *line,
         }
     }
 }
@@ -777,6 +779,9 @@ impl Assembler {
                 }
                 
                 let builder = self.procedures.clone().get(&procedure_id.0).ok_or(CompilerError::UndeclaredProcedure(procedure_id.0.clone(), procedure_id.1))?.clone();
+                if builder.declared_arguments.len() != arguments.len() {
+                    return Err(CompilerError::WrongNumberOfArguments(procedure_id.0.clone(), procedure_id.1));
+                }
                 if let Some(declarations) = &builder.declarations {
                     for declaration in declarations {
                         match declaration {

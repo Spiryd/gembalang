@@ -11,3 +11,7 @@ lalrpop-util = { version = "0.20.0", features = ["lexer", "unicode"] }
 
 [build-dependencies]
 lalrpop = "0.20.0"
+
+[[bin]]
+name = "kompilator"
+path = "src/main.rs"

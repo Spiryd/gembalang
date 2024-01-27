@@ -79,8 +79,11 @@ fn write_message_and_exit(error: CompilerError, input_file_path: &String) {
         CompilerError::RecursiveProcedureCall(id, _) => {
             println!("ERROR: Recursive procedure call for procedure `{id}` line: {line_no}");
         },
+        CompilerError::WrongNumberOfArguments(id, _) => {
+            println!("ERROR: Wrong number of arguments for procedure `{id}` line: {line_no}");
+        },
     }
-    std::process::exit(0);
+    std::process::exit(1);
 }
 
 fn find_line_number(file_path: &str, n: usize) -> Option<usize> {
